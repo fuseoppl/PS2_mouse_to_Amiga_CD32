@@ -1,32 +1,36 @@
-//PS2 to Amiga mouse translator v 1.0 (tested on CD32)
+//PS2 to Amiga mouse translator v 1.1 (tested on CD32)
 //Optical mouse Logitech M-SBF96 PS2
 #include <avr/wdt.h>
 
 //PS2MouseHandler.h modified library! - do not use the original one!
 //keep the library files directly in the sketch directory
 #include "PS2MouseHandler.h"
-#define MOUSE_DATA 11
-#define MOUSE_CLOCK 3
 
-//   DFRobot Beetle Board <-> Amiga DB9
+//====================================//
+//   DFRobot Beetle Board
 //     compatible with
-//    Arduino Leonardo
-                    // +   <- pin 7
-                    // -  <-> pin 8
-#define Vpin     A0 // A0  -> pin 1
-#define VQpin    A1 // A1  -> pin 3
-#define Hpin      9 // D9  -> pin 2
-#define HQpin    10 //D10  -> pin 4
-#define ButtonL  A2 // A2  -> pin 6
-#define ButtonR   2 //SDA  -> pin 9
-#define ButtonM   0 // RX  -> pin 5
+//    Arduino Leonardo  <-> Amiga DB9
+//------------------------------------//
+                      // +   <- pin 7
+                      // -  <-> pin 8
+#define Vpin       A0 // A0  -> pin 1
+#define VQpin      A1 // A1  -> pin 3
+#define Hpin        9 // D9  -> pin 2
+#define HQpin      10 //D10  -> pin 4
+#define ButtonL     2 //SDA  -> pin 6
+#define ButtonR    A2 // A2  -> pin 9
+#define ButtonM     0 // RX  -> pin 5
+//------------------------------------//
+#define MOUSE_DATA 11 //D11
+#define MOUSE_CLOCK 3 //SCL
+//====================================//
 
 #define LED      13 //internal LED
 
-#define DelayLoop 3 //protection against overturning Amiga counters
+#define DelayLoop 10 //protection against overturning Amiga counters
 
 volatile uint16_t pinStateDelay = 100; //us, 1/4 of the full period
-volatile int16_t  m_max         = 8;   //maximum number of pulses per cycle
+volatile int16_t  m_max         = 10;   //maximum number of pulses per cycle
 
 PS2MouseHandler mouse(MOUSE_CLOCK, MOUSE_DATA, PS2_MOUSE_STREAM);
 
@@ -44,23 +48,23 @@ void setup()
   digitalWrite(ButtonM, HIGH);
   digitalWrite(LED, LOW);
 
-  //Serial.begin(115200);
-  
+Serial.begin(115200);
+
+  digitalWrite(LED, HIGH);
   if (mouse.initialise() != 0)
   {
-    //Serial.println("MOUSE_ERROR");
-    //Serial.flush();
-    digitalWrite(LED, HIGH);
-    delay(1000);
-    digitalWrite(LED, LOW);
     wdt_reset();
     wdt_enable(WDTO_1S);
+    Serial.println("MOUSE_ERROR");
+    Serial.flush();
+    digitalWrite(LED, LOW);
     while (1) {}
   }
-  
+  digitalWrite(LED, LOW);
+
   mouse.set_resolution(1);
   mouse.set_scaling_1_1();
-  mouse.set_sample_rate(80, false);
+  mouse.set_sample_rate(200, false);
 }
 
 void loop()
@@ -76,13 +80,29 @@ void loop()
 
   if (x_m != 0 || y_m != 0) 
   {
-    bool HcounterIsUp = (x_m > 0) ? true : false;
+    bool HcounterIsUp = (x_m >= 0) ? true : false;
     x_m = abs(x_m);
-    if (x_m > m_max) x_m = m_max;
+   
+    if (x_m > 0)
+    {
+      double _x_m = x_m / 10.0;
+      _x_m = pow(2, _x_m);
+      x_m = _x_m + 0.5;
 
-    bool VcounterIsUp = (y_m > 0) ? false : true;
+      if (x_m > m_max) x_m = m_max;
+    }
+
+    bool VcounterIsUp = (y_m >= 0) ? false : true;
     y_m = abs(y_m);
-    if (y_m > m_max) y_m = m_max;
+
+    if (y_m > 0)
+    {
+      double _y_m = y_m / 10.0;
+      _y_m = pow(2, _y_m);
+      y_m = _y_m + 0.5;
+
+      if (y_m > m_max) y_m = m_max;
+    }
 
     pulseGenerator(HcounterIsUp, VcounterIsUp, pinStateDelay, x_m, y_m);
   }
@@ -91,6 +111,19 @@ void loop()
 
 void pulseGenerator(bool HcounterIsUp, bool VcounterIsUp ,uint16_t pinStateDelay, uint8_t HPulsesPerStep, uint8_t VPulsesPerStep)
 {
+/*
+Serial.print(HcounterIsUp);
+Serial.print(";");
+Serial.print(VcounterIsUp);
+Serial.print(";");
+Serial.print(pinStateDelay);
+Serial.print(";");
+Serial.print(HPulsesPerStep);
+Serial.print(";");
+Serial.print(VPulsesPerStep);
+Serial.println("");
+Serial.flush(); 
+*/
   digitalWrite(LED, HIGH);
   uint8_t _HcounterIsUp = HcounterIsUp ? 255 : 0;
   uint8_t _VcounterIsUp = VcounterIsUp ? 255 : 0;

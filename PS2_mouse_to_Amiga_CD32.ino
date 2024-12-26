@@ -31,6 +31,8 @@
 
 volatile uint16_t pinStateDelay = 100; //us, 1/4 of the full period
 volatile int16_t  m_max         = 10;   //maximum number of pulses per cycle
+bool resolutionState            = 0;
+double resolution               = 10.0;
 
 PS2MouseHandler mouse(MOUSE_CLOCK, MOUSE_DATA, PS2_MOUSE_STREAM);
 
@@ -64,7 +66,7 @@ Serial.begin(115200);
 
   mouse.set_resolution(1);
   mouse.set_scaling_1_1();
-  mouse.set_sample_rate(200, false);
+  mouse.set_sample_rate(600, false);
 }
 
 void loop()
@@ -77,6 +79,14 @@ void loop()
 
   int16_t x_m = mouse.x_movement();
   int16_t y_m = mouse.y_movement();
+  //int16_t z_m = mouse.z_movement();
+  
+  if (!resolutionState && mouse.button(1))
+  {
+    resolution = (resolution == 10) ? 20 : 10;
+  }
+  
+  resolutionState = mouse.button(1);
 
   if (x_m != 0 || y_m != 0) 
   {
@@ -85,7 +95,7 @@ void loop()
    
     if (x_m > 0)
     {
-      double _x_m = x_m / 10.0;
+      double _x_m = x_m / resolution;
       _x_m = pow(2, _x_m);
       x_m = _x_m + 0.5;
 
@@ -97,7 +107,7 @@ void loop()
 
     if (y_m > 0)
     {
-      double _y_m = y_m / 10.0;
+      double _y_m = y_m / resolution;
       _y_m = pow(2, _y_m);
       y_m = _y_m + 0.5;
 

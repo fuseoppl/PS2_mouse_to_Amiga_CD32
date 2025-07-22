@@ -27,12 +27,10 @@
 
 #define LED      13 //internal LED
 
-#define DelayLoop 10 //protection against overturning Amiga counters
-
-volatile uint16_t pinStateDelay = 100; //us, 1/4 of the full period
-volatile int16_t  m_max         = 10;   //maximum number of pulses per cycle
+volatile uint16_t pinStateDelay = 25; //100 us, 1/4 of the full period
+volatile int16_t  m_max         = 15;   //10 maximum number of pulses per cycle
 bool resolutionState            = 0;
-double resolution               = 10.0;
+double resolution               = 2.0;
 
 PS2MouseHandler mouse(MOUSE_CLOCK, MOUSE_DATA, PS2_MOUSE_STREAM);
 
@@ -65,12 +63,14 @@ Serial.begin(115200);
   digitalWrite(LED, LOW);
 
   mouse.set_resolution(1);
-  mouse.set_scaling_1_1();
-  mouse.set_sample_rate(600, false);
+  mouse.set_scaling_2_1();
+  mouse.set_sample_rate(200, false); //max 200
+  mouse.set_stream_mode();
 }
 
 void loop()
 {
+  delay(10);
   mouse.get_data();
 
   digitalWrite(ButtonL, !mouse.button(0));
@@ -79,16 +79,28 @@ void loop()
 
   int16_t x_m = mouse.x_movement();
   int16_t y_m = mouse.y_movement();
-  //int16_t z_m = mouse.z_movement();
-  
+  int16_t z_m = mouse.z_movement();
+
+/*
+if (x_m != 0 || y_m != 0 || z_m != 0){
+  Serial.print(x_m);
+  Serial.print("*");
+  Serial.print(y_m);
+  Serial.print("*");
+  Serial.print(z_m);
+  Serial.println("");
+  Serial.flush(); 
+}
+*/
+
   if (!resolutionState && mouse.button(1))
   {
-    resolution = (resolution == 10) ? 20 : 10;
+    resolution = (resolution < 10) ? 5.0 : 2.0;
   }
-  
+
   resolutionState = mouse.button(1);
 
-  if (x_m != 0 || y_m != 0) 
+  if (x_m != 0 || y_m != 0)
   {
     bool HcounterIsUp = (x_m >= 0) ? true : false;
     x_m = abs(x_m);
@@ -96,9 +108,9 @@ void loop()
     if (x_m > 0)
     {
       double _x_m = x_m / resolution;
-      _x_m = pow(2, _x_m);
       x_m = _x_m + 0.5;
-
+      
+      if (x_m < 1) x_m = 1;
       if (x_m > m_max) x_m = m_max;
     }
 
@@ -108,70 +120,60 @@ void loop()
     if (y_m > 0)
     {
       double _y_m = y_m / resolution;
-      _y_m = pow(2, _y_m);
       y_m = _y_m + 0.5;
 
+      if (y_m < 1) y_m = 1;
       if (y_m > m_max) y_m = m_max;
     }
-
+/*
+Serial.print(x_m);
+Serial.print(";");
+Serial.print(y_m);
+Serial.println("");
+Serial.flush(); 
+*/
     pulseGenerator(HcounterIsUp, VcounterIsUp, pinStateDelay, x_m, y_m);
   }
-  delay(DelayLoop);
 }
 
 void pulseGenerator(bool HcounterIsUp, bool VcounterIsUp ,uint16_t pinStateDelay, uint8_t HPulsesPerStep, uint8_t VPulsesPerStep)
 {
-/*
-Serial.print(HcounterIsUp);
-Serial.print(";");
-Serial.print(VcounterIsUp);
-Serial.print(";");
-Serial.print(pinStateDelay);
-Serial.print(";");
-Serial.print(HPulsesPerStep);
-Serial.print(";");
-Serial.print(VPulsesPerStep);
-Serial.println("");
-Serial.flush(); 
-*/
+
   digitalWrite(LED, HIGH);
-  uint8_t _HcounterIsUp = HcounterIsUp ? 255 : 0;
-  uint8_t _VcounterIsUp = VcounterIsUp ? 255 : 0;
-  uint8_t _maxPulsesPerStep = (HPulsesPerStep > VPulsesPerStep) ? HPulsesPerStep : VPulsesPerStep;
+  uint8_t _maxPulsesPerStep = (HPulsesPerStep > VPulsesPerStep) ? HPulsesPerStep : VPulsesPerStep; 
 
-  for (int pulses = 0; pulses < _maxPulsesPerStep; pulses++)
-  {
-    if (HPulsesPerStep > pulses)
-    {
-      digitalWrite(Hpin, 0);
-      digitalWrite(HQpin, _HcounterIsUp ^ 0);
-    } 
+  for (int pulses = 0; _maxPulsesPerStep > pulses ; pulses++)
+  {    
 
-    if (VPulsesPerStep > pulses)
-    {
-      digitalWrite(Vpin, 0);
-      digitalWrite(VQpin, _VcounterIsUp ^ 0);
+    delayMicroseconds(pinStateDelay);
+    if (HcounterIsUp) {  
+      if (HPulsesPerStep > pulses) digitalWrite(Hpin, !digitalRead(Hpin));
+    }
+    else {
+      if (HPulsesPerStep > pulses) digitalWrite(HQpin, !digitalRead(HQpin));
+    }
+
+    if (VcounterIsUp) {  
+      if (VPulsesPerStep > pulses) digitalWrite(Vpin, !digitalRead(Vpin));
+    }
+    else {
+      if (VPulsesPerStep > pulses) digitalWrite(VQpin, !digitalRead(VQpin));
     }
 
     delayMicroseconds(pinStateDelay);
+    if (HcounterIsUp) { 
+      if (HPulsesPerStep > pulses) digitalWrite(HQpin, !digitalRead(HQpin));
+    }
+    else {
+      if (HPulsesPerStep > pulses) digitalWrite(Hpin, !digitalRead(Hpin));
+    }
 
-    if (HPulsesPerStep > pulses) digitalWrite(HQpin, _HcounterIsUp ^ 255);
-
-    if (VPulsesPerStep > pulses) digitalWrite(VQpin, _VcounterIsUp ^ 255);
-
-    delayMicroseconds(pinStateDelay);
-    
-    if (HPulsesPerStep > pulses) digitalWrite(Hpin, 255);
-
-    if (VPulsesPerStep > pulses) digitalWrite(Vpin, 255);
-
-    delayMicroseconds(pinStateDelay);
-
-    if (HPulsesPerStep > pulses) digitalWrite(HQpin, _HcounterIsUp ^ 0);
-
-    if (VPulsesPerStep > pulses) digitalWrite(VQpin, _VcounterIsUp ^ 0);
-
-    delayMicroseconds(pinStateDelay);
+    if (VcounterIsUp) { 
+      if (VPulsesPerStep > pulses) digitalWrite(VQpin, !digitalRead(VQpin));
+    }
+    else {
+      if (VPulsesPerStep > pulses) digitalWrite(Vpin, !digitalRead(Vpin));
+    }
   }
 
   digitalWrite(LED, LOW);

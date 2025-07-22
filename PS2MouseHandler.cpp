@@ -103,9 +103,10 @@ int PS2MouseHandler::try_initialise() {
   read_byte();  // Device ID - ignore for now - should be 0x00 for mouse
 
   set_sample_rate(200, false);
-  //set_sample_rate(100, true);
-  //set_sample_rate(80, true);
-    // set scroll wheel mode if available  _device_id = get_device_id(); // 0x00 = no scroll wheel
+  set_sample_rate(100, true);
+  set_sample_rate(80, true);
+  // set scroll wheel mode if available  
+  _device_id = get_device_id(); // 0x00 = no scroll wheel
 
   if (_mode == PS2_MOUSE_REMOTE) {
     set_remote_mode();
@@ -265,13 +266,14 @@ void PS2MouseHandler::get_data() {
   _status = read(); // Status byte
   _x_movement = read_movement_9(bitRead(_status, 4)); // X Movement Packet
   _y_movement = read_movement_9(bitRead(_status, 5)); // Y Movement Packet
-  /*if (_device_id > 0){
+
+  if (_device_id > 0){
     // read scroll wheel
     _z_movement = read_movement_z(); // Z Movement Packet
   }
   else {
     _z_movement = 0;
-  };*/
+  };
 }
 
 uint8_t PS2MouseHandler::read() {
@@ -328,11 +330,11 @@ int8_t PS2MouseHandler::read_movement_z() {
   // test bit 3 for sign
   if(bitRead(value, 3)){
     // negative - set upper nibble to 1's
-    value |= 0xF0;
+  //  value |= 0xF0;
   }
   else {
     // positive - set upper nibble to 0's
-    value &= 0x0F;
+  //  value &= 0x0F;
   }
   return value;
 }

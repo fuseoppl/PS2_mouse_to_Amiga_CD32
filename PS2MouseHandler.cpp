@@ -330,11 +330,11 @@ int8_t PS2MouseHandler::read_movement_z() {
   // test bit 3 for sign
   if(bitRead(value, 3)){
     // negative - set upper nibble to 1's
-  //  value |= 0xF0;
+    value |= 0xF0;
   }
   else {
     // positive - set upper nibble to 0's
-  //  value &= 0x0F;
+    value &= 0x0F;
   }
   return value;
 }

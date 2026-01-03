@@ -1,7 +1,7 @@
-//PS2 to Amiga mouse translator v 2.0 (tested on CD32)
+//PS2 to Amiga mouse translator v 2.1 (tested on CD32)
 //Optical mouse Logitech M-SBF96 PS2
 #include <avr/wdt.h>
-
+#include <EEPROM.h>
 //PS2MouseHandler.h modified library! - do not use the original one!
 //keep the library files directly in the sketch directory
 #include "PS2MouseHandler.h"
@@ -27,17 +27,20 @@
 #define LED        13 //internal LED
 //====================================//
 
-#define resolutionHighDiv 2.0
-#define resolutionLowDiv  5.0
+#define resolutionHighDiv 3
+#define resolutionLowDiv  7
 
-volatile uint16_t pinStateDelay = 25;   //us, 1/2 of the one pulse
+const char* firmwareRevision    = "2.1";
+volatile uint16_t pinStateDelay = 20;   //us, 1/2 of the one pulse
 volatile int16_t  m_max         = 15;   //maximum number of pulses per cycle
 bool resolutionState            = 0;
-double resolutionDiv            = resolutionHighDiv;
+byte resolutionDiv              = resolutionLowDiv;
 
 PS2MouseHandler mouse(MOUSE_CLOCK, MOUSE_DATA, PS2_MOUSE_STREAM);
 
 void setup() {
+  resolutionDiv      = EEPROM.read(0);
+  if (resolutionDiv < resolutionHighDiv || resolutionDiv > resolutionLowDiv) resolutionDiv = resolutionLowDiv;
   pinMode(Vpin,  OUTPUT);
   pinMode(VQpin, OUTPUT);
   pinMode(Hpin,  OUTPUT);
@@ -50,7 +53,7 @@ void setup() {
   digitalWrite(ButtonM, HIGH);
   digitalWrite(LED, LOW);
 
-Serial.begin(115200);
+Serial.begin(250000);
 
   digitalWrite(LED, HIGH);
 
@@ -65,14 +68,15 @@ Serial.begin(115200);
 
   digitalWrite(LED, LOW);
 
-  mouse.set_resolution(1);
+  mouse.set_resolution(8);
   mouse.set_scaling_2_1(); //2_1 == acceleration on
   mouse.set_sample_rate(200, false); //max 200
   mouse.set_stream_mode();
 }
 
 void loop() {
-  delay(10);
+  delay(5); 
+  //mouse.enable_data_reporting();
   mouse.get_data();
 
   digitalWrite(ButtonL, !mouse.button(0));
@@ -85,16 +89,31 @@ void loop() {
 
   if (!resolutionState && mouse.button(1)) {
     resolutionDiv = (resolutionDiv == resolutionHighDiv) ? resolutionLowDiv : resolutionHighDiv;
+    EEPROM.write(0, resolutionDiv);
+    delay(10);
   }
 
   resolutionState = mouse.button(1);
+
+/*
+  if (x_m != 0 || y_m != 0 || z_m != 0) {
+    Serial.print(x_m);
+    Serial.print("*");
+    Serial.print(y_m);
+    Serial.print("*");
+    Serial.println(z_m);
+    Serial.flush();
+  }
+*/
+
+  //mouse.disable_data_reporting();
 
   if (x_m != 0 || y_m != 0) {
     bool HcounterIsUp = (x_m >= 0) ? true : false;
     x_m = abs(x_m);
    
     if (x_m > 0) {
-      double _x_m = x_m / resolutionDiv;
+      double _x_m = x_m / (double)resolutionDiv;
       x_m = _x_m + 0.5;
       
       if (x_m < 1) x_m = 1;
@@ -105,14 +124,14 @@ void loop() {
     y_m = abs(y_m);
 
     if (y_m > 0) {
-      double _y_m = y_m / resolutionDiv;
+      double _y_m = y_m / (double)resolutionDiv;
       y_m = _y_m + 0.5;
 
       if (y_m < 1) y_m = 1;
       if (y_m > m_max) y_m = m_max;
     }
 
-    pulseGenerator(HcounterIsUp, VcounterIsUp, pinStateDelay, x_m, y_m);
+    pulseGenerator(HcounterIsUp, VcounterIsUp, pinStateDelay, x_m, y_m); 
   }
 }
 

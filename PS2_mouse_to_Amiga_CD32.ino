@@ -1,5 +1,5 @@
-//PS2 to Amiga mouse translator v 2.2 (tested on CD32)
-//Optical mouse Logitech M-SBF96 PS2
+//PS/2 to Amiga mouse translator v 2.2 (tested on CD32)
+//Optical mouse Genius M/N:DX-110 GM-150014 PS/2
 //Nine speed levels, speed stored in EEPROM memory
 //Increase speed: Middle mouse button
 //Decrease speed: Right mouse button + Middle mouse button

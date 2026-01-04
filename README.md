@@ -1,12 +1,12 @@
-# PS2 mouse to Amiga CD32
+# PS/2 mouse to Amiga CD32
 
 Nine speed levels, speed stored in EEPROM memory.
 * Increase speed: Middle mouse button
 * Decrease speed: Right mouse button + Middle mouse button
 
-PS2 to Amiga mouse translator tested on:
+PS/2 to Amiga mouse translator tested on:
 * Amiga CD32
-* optical mouse Logitech M-SBF96 PS2
+* optical mouse Genius M/N:DX-110 GM-150014 PS/2
 * DFRobot Beetle Board compatible with Arduino Leonardo
 
 The project used a modified library: https://github.com/getis/Arduino-PS2-Mouse-Handler

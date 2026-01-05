@@ -1,6 +1,7 @@
 //PS/2 to Amiga mouse translator v 2.2 (tested on CD32)
 //Optical mouse Genius M/N:DX-110 GM-150014 PS/2
-//Nine speed levels, speed stored in EEPROM memory
+//Five levels of mouse speed
+//Speed stored in EEPROM memory
 //Increase speed: Middle mouse button
 //Decrease speed: Right mouse button + Middle mouse button
 #include <avr/wdt.h>
@@ -90,7 +91,7 @@ void loop() {
   int16_t z_m = mouse.z_movement();
 
   if (!speedState && mouse.button(1)) {
-    speedDiv = (mouse.button(2)) ?  speedDiv + 1 : speedDiv - 1;
+    speedDiv = (mouse.button(2)) ?  speedDiv + 2 : speedDiv - 2;
     if (speedDiv < speedHighDiv) speedDiv = speedHighDiv;
     if (speedDiv > speedLowDiv) speedDiv = speedLowDiv;
     EEPROM.write(0, speedDiv);

@@ -106,6 +106,9 @@ int PS2MouseHandler::try_initialise() {
   set_sample_rate(80);
   // set scroll wheel mode if available  
   _device_id = get_device_id(); // 0x00 = no scroll wheel
+  set_sample_rate(3);
+  set_scaling_1_1();
+  set_sample_rate(40);
 
   if (_mode == PS2_MOUSE_REMOTE) {
     set_remote_mode();
@@ -113,24 +116,16 @@ int PS2MouseHandler::try_initialise() {
     enable_data_reporting(); // Tell the mouse to start sending data again
   }
   delayMicroseconds(100);
-  _initialised = 1;
-  get_data(); // initial read of mouse data
-  _last_status = _status; // suppress false button presses
+  //get_data(); // initial read of mouse data
+  //_last_status = _status; // suppress false button presses
   return 0; // OK
 }
 
 void PS2MouseHandler::set_mode(int data) {
-  if (_mode == PS2_MOUSE_STREAM) {
-    disable_data_reporting(); // Tell the mouse to stop sending data.
-  }
   write(data);  // Send Set Mode
   read_byte();  // Read Ack byte
-  if (_mode == PS2_MOUSE_STREAM) {
-    enable_data_reporting(); // Tell the mouse to start sending data again
-  }
-  if (_initialised) {
-    delayMicroseconds(100);
-  }
+  
+  //delayMicroseconds(100);
 }
 
 int PS2MouseHandler:: get_device_id(){
@@ -144,12 +139,14 @@ void PS2MouseHandler::set_remote_mode() {
   set_mode(0xf0);
   read_byte(); // Read Ack Byte
   _mode = PS2_MOUSE_REMOTE;
+  //delayMicroseconds(100);
 }
 
 void PS2MouseHandler::set_stream_mode() {
   set_mode(0xea);
   read_byte(); // Read Ack Byte
   _mode = PS2_MOUSE_STREAM;
+  //delayMicroseconds(100);
 }
 
 void PS2MouseHandler::set_sample_rate(int rate) {
@@ -157,17 +154,19 @@ void PS2MouseHandler::set_sample_rate(int rate) {
   read_byte(); // Read Ack Byte
   write(rate); // Send Set Sample Rate
   read_byte(); // Read ack byte
-  delayMicroseconds(100);
+  //delayMicroseconds(100);
 }
 
 void PS2MouseHandler::set_scaling_2_1() {
   set_mode(0xe7); // Set the scaling to 2:1
   read_byte(); // Read Ack Byte
+  //delayMicroseconds(100);
 }
 
 void PS2MouseHandler::set_scaling_1_1() {
   set_mode(0xe6); // set the scaling to 1:1
   read_byte(); // Read Ack Byte
+  //delayMicroseconds(100);
 }
 
 // This only effects data reporting in Stream mode.
@@ -176,6 +175,7 @@ void PS2MouseHandler::enable_data_reporting() {
     write(0xf4); // Send enable data reporting
     read_byte(); // Read Ack Byte
     _enabled = true;
+    //delayMicroseconds(100);
   }
 }
 
@@ -185,21 +185,16 @@ void PS2MouseHandler::disable_data_reporting() {
     write(0xf5); // Send disable data reporting
     read_byte(); // Read Ack Byte
     _enabled = false;
+    //delayMicroseconds(100);
   }
 }
 
 void PS2MouseHandler::set_resolution(int resolution) {
-  if (_mode == PS2_MOUSE_STREAM) {
-    enable_data_reporting();
-  }
   write(0xe8); // Send Set Resolution
   read_byte(); // Read ack Byte
   write(resolution); // Send resolution setting
   read_byte(); // Read ack Byte
-  if (_mode == PS2_MOUSE_STREAM) {
-    disable_data_reporting();
-  }
-  delayMicroseconds(100);
+  //delayMicroseconds(100);
 }
 
 void PS2MouseHandler::write(int data) {

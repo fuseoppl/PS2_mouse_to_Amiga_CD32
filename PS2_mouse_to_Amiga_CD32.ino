@@ -1,5 +1,5 @@
 //PS/2 to Amiga mouse translator v 3.0 (tested on CD32)
-//Optical mouse Genius M/N:DX-110 GM-150014 PS/2
+//Optical mouse Perixx PERIMICE-201 PS/2
 //Five levels of mouse speed
 //Speed stored in EEPROM memory
 //Increase speed: Middle mouse button
@@ -35,13 +35,13 @@
 #define speedHighDiv 2 //2
 #define speedLowDiv  10 //10
 
-const char* firmwareRevision    = "2.2";
-volatile uint16_t pinStateDelay = 10;   //20 us, half the length of one pulse
+const char* firmwareRevision    = "3.0";
+volatile uint16_t pinStateDelay = 15;   //20 us, half the length of one pulse
 volatile int16_t  m_max         = 15;   //15 maximum number of pulses per cycle
 bool speedState                 = 0;
 byte speedDiv                   = speedLowDiv;
 
-PS2MouseHandler mouse(MOUSE_CLOCK, MOUSE_DATA, PS2_MOUSE_REMOTE);
+PS2MouseHandler mouse(MOUSE_CLOCK, MOUSE_DATA, PS2_MOUSE_STREAM);//PS2_MOUSE_REMOTE
 
 void setup() {
   speedDiv      = EEPROM.read(0);
@@ -73,15 +73,16 @@ Serial.begin(250000);
 
   digitalWrite(LED, LOW);
 
+  mouse.disable_data_reporting();
   mouse.set_resolution(0);
-  mouse.set_scaling_1_1(); //2_1 == acceleration on
-  mouse.set_sample_rate(10); //10, 20, 40, 60, 80, 100, 200
+  mouse.set_scaling_2_1(); //2_1 == acceleration on
+  mouse.set_sample_rate(40); //10, 20, 40, 60, 80, 100, 200
   mouse.set_stream_mode();
+  mouse.enable_data_reporting();
 }
 
 void loop() {
-//  delay(5);
-
+  delay(5);
   mouse.get_data();
 
   digitalWrite(ButtonL, !mouse.button(0));

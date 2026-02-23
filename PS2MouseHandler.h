@@ -12,7 +12,6 @@ class PS2MouseHandler
     int _mode;
     int _initialised;
     int _enabled;
-    int _disabled;
     bool _no_mouse;
 
     uint8_t _last_status;

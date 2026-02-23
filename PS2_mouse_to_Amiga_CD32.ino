@@ -1,4 +1,4 @@
-//PS/2 to Amiga mouse translator v 2.2 (tested on CD32)
+//PS/2 to Amiga mouse translator v 3.0 (tested on CD32)
 //Optical mouse Genius M/N:DX-110 GM-150014 PS/2
 //Five levels of mouse speed
 //Speed stored in EEPROM memory
@@ -9,6 +9,8 @@
 //PS2MouseHandler.h modified library! - do not use the original one!
 //keep the modified library files directly in the sketch directory
 #include "PS2MouseHandler.h"
+
+//#define SERIALDEBUGGER
 
 //=======================================//
 //   DFRobot Beetle Board
@@ -30,16 +32,16 @@
 #define LED          13 //internal LED
 //=======================================//
 
-#define speedHighDiv 2
-#define speedLowDiv  10
+#define speedHighDiv 2 //2
+#define speedLowDiv  10 //10
 
 const char* firmwareRevision    = "2.2";
-volatile uint16_t pinStateDelay = 20;   //us, half the length of one pulse
-volatile int16_t  m_max         = 15;   //maximum number of pulses per cycle
+volatile uint16_t pinStateDelay = 10;   //20 us, half the length of one pulse
+volatile int16_t  m_max         = 15;   //15 maximum number of pulses per cycle
 bool speedState                 = 0;
 byte speedDiv                   = speedLowDiv;
 
-PS2MouseHandler mouse(MOUSE_CLOCK, MOUSE_DATA, PS2_MOUSE_STREAM);
+PS2MouseHandler mouse(MOUSE_CLOCK, MOUSE_DATA, PS2_MOUSE_REMOTE);
 
 void setup() {
   speedDiv      = EEPROM.read(0);
@@ -71,15 +73,15 @@ Serial.begin(250000);
 
   digitalWrite(LED, LOW);
 
-  mouse.set_resolution(8);
-  mouse.set_scaling_2_1(); //2_1 == acceleration on
-  mouse.set_sample_rate(200, false); //max 200
+  mouse.set_resolution(0);
+  mouse.set_scaling_1_1(); //2_1 == acceleration on
+  mouse.set_sample_rate(10); //10, 20, 40, 60, 80, 100, 200
   mouse.set_stream_mode();
 }
 
 void loop() {
-  delay(5); 
-  //mouse.enable_data_reporting(); //for test purpose only
+//  delay(5);
+
   mouse.get_data();
 
   digitalWrite(ButtonL, !mouse.button(0));
@@ -100,8 +102,7 @@ void loop() {
 
   speedState = mouse.button(1); //before changing the speed again, you must release the middle mouse button
 
-//debbuging
-/*
+#if defined(SERIALDEBUGGER)
   if (x_m != 0 || y_m != 0 || z_m != 0) {
     Serial.print(x_m);
     Serial.print("*");
@@ -110,9 +111,7 @@ void loop() {
     Serial.println(z_m);
     Serial.flush();
   }
-*/
-
-  //mouse.disable_data_reporting(); //for test purpose only
+#endif
 
   if (x_m != 0 || y_m != 0) {
     bool HcounterIsUp = (x_m >= 0) ? true : false;
@@ -143,7 +142,7 @@ void loop() {
 
 void pulseGenerator(bool HcounterIsUp, bool VcounterIsUp ,uint16_t pinStateDelay, uint8_t HPulsesPerStep, uint8_t VPulsesPerStep) {
 
-  digitalWrite(LED, HIGH);
+  //digitalWrite(LED, HIGH);
   uint8_t _maxPulsesPerStep = (HPulsesPerStep > VPulsesPerStep) ? HPulsesPerStep : VPulsesPerStep; 
 
   for (int pulses = 0; _maxPulsesPerStep > pulses ; pulses++) {    
@@ -173,5 +172,5 @@ void pulseGenerator(bool HcounterIsUp, bool VcounterIsUp ,uint16_t pinStateDelay
     }
   }
 
-  digitalWrite(LED, LOW);
+  //digitalWrite(LED, LOW);
 }

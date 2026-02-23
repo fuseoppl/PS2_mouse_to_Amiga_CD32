@@ -56,7 +56,7 @@ class PS2MouseHandler
     void set_resolution(int);
     void set_scaling_2_1();
     void set_scaling_1_1();
-    void set_sample_rate(int, bool);
+    void set_sample_rate(int);
 };
 
 #endif

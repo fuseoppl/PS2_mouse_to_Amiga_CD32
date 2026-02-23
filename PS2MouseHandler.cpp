@@ -8,7 +8,6 @@ PS2MouseHandler::PS2MouseHandler(int clock_pin, int data_pin, int mode) {
   _data_pin = data_pin;
   _mode = mode;
   _initialised = false;
-  _disabled = true;
   _enabled = false;
   _device_id = 0x00;
   _no_mouse = false;
@@ -102,9 +101,9 @@ int PS2MouseHandler::try_initialise() {
   }
   read_byte();  // Device ID - ignore for now - should be 0x00 for mouse
 
-  set_sample_rate(200, false);
-  set_sample_rate(100, true);
-  set_sample_rate(80, true);
+  set_sample_rate(200);
+  set_sample_rate(100);
+  set_sample_rate(80);
   // set scroll wheel mode if available  
   _device_id = get_device_id(); // 0x00 = no scroll wheel
 
@@ -143,34 +142,32 @@ int PS2MouseHandler:: get_device_id(){
 
 void PS2MouseHandler::set_remote_mode() {
   set_mode(0xf0);
+  read_byte(); // Read Ack Byte
   _mode = PS2_MOUSE_REMOTE;
 }
 
 void PS2MouseHandler::set_stream_mode() {
   set_mode(0xea);
+  read_byte(); // Read Ack Byte
   _mode = PS2_MOUSE_STREAM;
 }
 
-void PS2MouseHandler::set_sample_rate(int rate, bool ignore_sample_rate) {
-  if (_mode == PS2_MOUSE_STREAM && !ignore_sample_rate) {
-    disable_data_reporting(); // Tell the mouse to stop sending data.
-  }
+void PS2MouseHandler::set_sample_rate(int rate) {
   write(0xf3); // Tell the mouse we are going to set the sample rate.
   read_byte(); // Read Ack Byte
   write(rate); // Send Set Sample Rate
   read_byte(); // Read ack byte
-  if (_mode == PS2_MOUSE_STREAM && !ignore_sample_rate) {
-    enable_data_reporting(); // Tell the mouse to start sending data again
-  }
   delayMicroseconds(100);
 }
 
 void PS2MouseHandler::set_scaling_2_1() {
   set_mode(0xe7); // Set the scaling to 2:1
+  read_byte(); // Read Ack Byte
 }
 
 void PS2MouseHandler::set_scaling_1_1() {
   set_mode(0xe6); // set the scaling to 1:1
+  read_byte(); // Read Ack Byte
 }
 
 // This only effects data reporting in Stream mode.
@@ -184,10 +181,10 @@ void PS2MouseHandler::enable_data_reporting() {
 
 // Disabling data reporting in Stream Mode will make it behave like Remote Mode
 void PS2MouseHandler::disable_data_reporting() {
-  if (!_disabled) {
+  if (_enabled) {
     write(0xf5); // Send disable data reporting
     read_byte(); // Read Ack Byte
-    _disabled = true;
+    _enabled = false;
   }
 }
 
@@ -255,14 +252,17 @@ void PS2MouseHandler::write(int data) {
   while ((!digitalRead(_clock_pin)) && (!digitalRead(_data_pin))) {;} // wait for mouse to release clock and data
 }
 
-void PS2MouseHandler::hold_incoming_data(){
+void PS2MouseHandler::hold_incoming_data() {
   pull_low(_clock_pin);
 }
 
 void PS2MouseHandler::get_data() {
   _last_status = _status; // save copy of status byte
+
+  if(_mode = PS2_MOUSE_REMOTE) {
   write(0xeb); // Send Read Data
   read_byte(); // Read Ack Byte
+  }
   _status = read(); // Status byte
   _x_movement = read_movement_9(bitRead(_status, 4)); // X Movement Packet
   _y_movement = read_movement_9(bitRead(_status, 5)); // Y Movement Packet

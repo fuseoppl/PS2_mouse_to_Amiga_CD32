@@ -1,4 +1,4 @@
-//PS/2 to Amiga mouse translator v 3.0 (tested on CD32)
+//PS/2 to Amiga mouse translator v 3.1 (tested on CD32)
 //Optical mouse Perixx PERIMICE-201 PS/2
 //Five levels of mouse speed
 //Speed stored in EEPROM memory
@@ -35,15 +35,17 @@
 #define speedHighDiv 2 //2
 #define speedLowDiv  10 //10
 
-const char* firmwareRevision    = "3.0";
-volatile uint16_t pinStateDelay = 15;   //20 us, half the length of one pulse
-volatile int16_t  m_max         = 15;   //15 maximum number of pulses per cycle
+const char* firmwareRevision    = "3.1";
+volatile uint16_t pinStateDelay = 5;   //5 us, half the length of one pulse
+volatile int16_t  m_max         = 25;   //25 maximum number of pulses per cycle
 bool speedState                 = 0;
 byte speedDiv                   = speedLowDiv;
 
-PS2MouseHandler mouse(MOUSE_CLOCK, MOUSE_DATA, PS2_MOUSE_STREAM);//PS2_MOUSE_REMOTE
+PS2MouseHandler mouse(MOUSE_CLOCK, MOUSE_DATA);
 
 void setup() {
+  Serial.begin(250000);
+
   speedDiv      = EEPROM.read(0);
   if (speedDiv < speedHighDiv || speedDiv > speedLowDiv) speedDiv = speedLowDiv;
   pinMode(Vpin,  OUTPUT);
@@ -58,8 +60,6 @@ void setup() {
   digitalWrite(ButtonM, HIGH);
   digitalWrite(LED, LOW);
 
-Serial.begin(250000);
-
   digitalWrite(LED, HIGH);
 
   if (mouse.initialise() != 0) {
@@ -71,18 +71,16 @@ Serial.begin(250000);
     while (1) {}
   }
 
-  digitalWrite(LED, LOW);
+  delay(1000);
 
-  mouse.disable_data_reporting();
-  mouse.set_resolution(0);
-  mouse.set_scaling_2_1(); //2_1 == acceleration on
-  mouse.set_sample_rate(40); //10, 20, 40, 60, 80, 100, 200
-  mouse.set_stream_mode();
-  mouse.enable_data_reporting();
+  digitalWrite(LED, LOW);
 }
 
 void loop() {
-  delay(5);
+  //read four times for high dpi mouse
+  mouse.get_data();
+  mouse.get_data();
+  mouse.get_data();
   mouse.get_data();
 
   digitalWrite(ButtonL, !mouse.button(0));
@@ -103,47 +101,53 @@ void loop() {
 
   speedState = mouse.button(1); //before changing the speed again, you must release the middle mouse button
 
-#if defined(SERIALDEBUGGER)
-  if (x_m != 0 || y_m != 0 || z_m != 0) {
-    Serial.print(x_m);
-    Serial.print("*");
-    Serial.print(y_m);
-    Serial.print("*");
-    Serial.println(z_m);
-    Serial.flush();
-  }
-#endif
-
-  if (x_m != 0 || y_m != 0) {
-    bool HcounterIsUp = (x_m >= 0) ? true : false;
-    x_m = abs(x_m);
-   
-    if (x_m > 0) {
-      double _x_m = x_m / (double)speedDiv;
-      x_m = _x_m + 0.5; //rounding
-      
-      if (x_m < 1) x_m = 1;
-      if (x_m > m_max) x_m = m_max; //too high a value will overclock the Amiga counter
+  #if defined(SERIALDEBUGGER)
+    if (x_m != 0 || y_m != 0 || z_m != 0) {
+      Serial.print(x_m);
+      Serial.print("*");
+      Serial.print(y_m);
+      Serial.print("*");
+      Serial.println(z_m);
+      Serial.flush();
     }
+  #endif
 
-    bool VcounterIsUp = (y_m >= 0) ? false : true;
-    y_m = abs(y_m);
+//  if (z_m == 0) {
+    if (x_m != 0 || y_m != 0) {
+      bool HcounterIsUp = (x_m >= 0) ? true : false;
+      x_m = abs(x_m);
+    
+      if (x_m > 0) {
+        double _x_m = x_m / (double)speedDiv;
+        x_m = _x_m + 0.5; //rounding
+        
+        if (x_m < 1) x_m = 1;
+        if (x_m > m_max) x_m = m_max; //too high a value will overclock the Amiga counter
+      }
 
-    if (y_m > 0) {
-      double _y_m = y_m / (double)speedDiv;
-      y_m = _y_m + 0.5; //rounding
+      bool VcounterIsUp = (y_m >= 0) ? false : true;
+      y_m = abs(y_m);
 
-      if (y_m < 1) y_m = 1;
-      if (y_m > m_max) y_m = m_max; //too high a value will overclock the Amiga counter
+      if (y_m > 0) {
+        double _y_m = y_m / (double)speedDiv;
+        y_m = _y_m + 0.5; //rounding
+
+        if (y_m < 1) y_m = 1;
+        if (y_m > m_max) y_m = m_max; //too high a value will overclock the Amiga counter
+      }
+
+      pulseGenerator(HcounterIsUp, VcounterIsUp, pinStateDelay, x_m, y_m); 
     }
-
-    pulseGenerator(HcounterIsUp, VcounterIsUp, pinStateDelay, x_m, y_m); 
-  }
+//  }
+//  else {
+//    digitalWrite(ButtonL, 0);
+//    bool VcounterIsUp = (z_m >= 0) ? false : true;
+//    pulseGenerator(false, VcounterIsUp, pinStateDelay, 0, 3);
+// }
 }
 
 void pulseGenerator(bool HcounterIsUp, bool VcounterIsUp ,uint16_t pinStateDelay, uint8_t HPulsesPerStep, uint8_t VPulsesPerStep) {
 
-  //digitalWrite(LED, HIGH);
   uint8_t _maxPulsesPerStep = (HPulsesPerStep > VPulsesPerStep) ? HPulsesPerStep : VPulsesPerStep; 
 
   for (int pulses = 0; _maxPulsesPerStep > pulses ; pulses++) {    
@@ -172,6 +176,4 @@ void pulseGenerator(bool HcounterIsUp, bool VcounterIsUp ,uint16_t pinStateDelay
       else              digitalWrite(Vpin,  !digitalRead(Vpin));
     }
   }
-
-  //digitalWrite(LED, LOW);
 }

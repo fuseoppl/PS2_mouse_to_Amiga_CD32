@@ -9,9 +9,6 @@ class PS2MouseHandler
   private:
     int _clock_pin;
     int _data_pin;
-    int _mode;
-    int _initialised;
-    int _enabled;
     bool _no_mouse;
 
     uint8_t _last_status;
@@ -29,14 +26,12 @@ class PS2MouseHandler
     uint8_t get_button_mask(int);
     void pull_high(int);
     void pull_low(int);
-    void set_mode(int);
     void write(int);
     void hold_incoming_data();
-    uint8_t read();
     int try_initialise();
 
   public:
-    PS2MouseHandler(int, int, int mode = PS2_MOUSE_STREAM);
+    PS2MouseHandler(int, int);//, int mode = PS2_MOUSE_STREAM);
     int initialise();
     int clock_pin();
     int data_pin();
@@ -48,14 +43,14 @@ class PS2MouseHandler
     bool button(int);
     bool clicked(int);
     void get_data();
-    void enable_data_reporting();
-    void disable_data_reporting();
-    void set_remote_mode();
-    void set_stream_mode();
-    void set_resolution(int);
-    void set_scaling_2_1();
-    void set_scaling_1_1();
-    void set_sample_rate(int);
+    int enable_data_reporting();
+    int disable_data_reporting();
+    int set_remote_mode();
+    int set_stream_mode();
+    int set_resolution(int);
+    int set_scaling_2_1();
+    int set_scaling_1_1();
+    int set_sample_rate(int);
 };
 
 #endif

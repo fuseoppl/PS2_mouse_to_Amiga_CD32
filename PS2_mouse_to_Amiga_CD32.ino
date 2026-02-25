@@ -1,5 +1,6 @@
-//PS/2 to Amiga mouse translator v 3.1 (tested on CD32)
-//Optical mouse Perixx PERIMICE-201 PS/2
+//PS/2 to Amiga CD32 mouse translator v 3.2
+//Tested on: Perixx PERIMICE-201 PS/2, Logitech M-SBF96 PS/2
+//Doesn't work with: Genius DX-110 PS/2
 //Five levels of mouse speed
 //Speed stored in EEPROM memory
 //Increase speed: Middle mouse button
@@ -35,9 +36,9 @@
 #define speedHighDiv 2 //2
 #define speedLowDiv  10 //10
 
-const char* firmwareRevision    = "3.1";
+const char* firmwareRevision    = "3.2";
 volatile uint16_t pinStateDelay = 5;   //5 us, half the length of one pulse
-volatile int16_t  m_max         = 25;   //25 maximum number of pulses per cycle
+volatile int16_t  m_max         = 10;   //25 maximum number of pulses per cycle
 bool speedState                 = 0;
 byte speedDiv                   = speedLowDiv;
 
@@ -46,41 +47,34 @@ PS2MouseHandler mouse(MOUSE_CLOCK, MOUSE_DATA);
 void setup() {
   Serial.begin(250000);
 
-  speedDiv      = EEPROM.read(0);
+  speedDiv = EEPROM.read(0);
   if (speedDiv < speedHighDiv || speedDiv > speedLowDiv) speedDiv = speedLowDiv;
-  pinMode(Vpin,  OUTPUT);
-  pinMode(VQpin, OUTPUT);
-  pinMode(Hpin,  OUTPUT);
-  pinMode(HQpin, OUTPUT);
+  pinMode(Vpin,    OUTPUT);
+  pinMode(VQpin,   OUTPUT);
+  pinMode(Hpin,    OUTPUT);
+  pinMode(HQpin,   OUTPUT);
   pinMode(ButtonL, OUTPUT);
   pinMode(ButtonR, OUTPUT);
   pinMode(ButtonM, OUTPUT);
   digitalWrite(ButtonL, HIGH);
   digitalWrite(ButtonR, HIGH);
   digitalWrite(ButtonM, HIGH);
-  digitalWrite(LED, LOW);
-
-  digitalWrite(LED, HIGH);
+  digitalWrite(LED,     HIGH);
 
   if (mouse.initialise() != 0) {
-    wdt_reset();
-    wdt_enable(WDTO_1S);
     Serial.println("MOUSE_ERROR");
     Serial.flush();
     digitalWrite(LED, LOW);
-    while (1) {}
+    wdt_reset();
+    wdt_enable(WDTO_120MS);
+    while (1) {;}
   }
-
-  delay(1000);
 
   digitalWrite(LED, LOW);
 }
 
 void loop() {
-  //read four times for high dpi mouse
-  mouse.get_data();
-  mouse.get_data();
-  mouse.get_data();
+  mouse.get_device_id(); //reset mouse counters and test mouse
   mouse.get_data();
 
   digitalWrite(ButtonL, !mouse.button(0));

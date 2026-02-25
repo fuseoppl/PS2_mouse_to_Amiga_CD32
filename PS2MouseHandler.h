@@ -1,8 +1,6 @@
 #ifndef PS2MouseHandler_h
 
 #define PS2MouseHandler_h
-#define PS2_MOUSE_REMOTE 1
-#define PS2_MOUSE_STREAM 2
 
 class PS2MouseHandler
 {
@@ -18,7 +16,6 @@ class PS2MouseHandler
     int8_t _z_movement;
 
     uint8_t _device_id;
-    int get_device_id();
     uint8_t read_byte();
     int read_bit();
     int16_t read_movement_9(bool);
@@ -27,7 +24,6 @@ class PS2MouseHandler
     void pull_high(int);
     void pull_low(int);
     void write(int);
-    void hold_incoming_data();
     int try_initialise();
 
   public:
@@ -35,6 +31,7 @@ class PS2MouseHandler
     int initialise();
     int clock_pin();
     int data_pin();
+    int get_device_id();
     int device_id();
     int status();
     int x_movement();
@@ -45,6 +42,8 @@ class PS2MouseHandler
     void get_data();
     int enable_data_reporting();
     int disable_data_reporting();
+    void hold_incoming_data();
+    void release_incoming_data();
     int set_remote_mode();
     int set_stream_mode();
     int set_resolution(int);

@@ -6,11 +6,12 @@ Five levels of mouse speed:
 * Increase speed: Middle mouse button
 * Decrease speed: Right mouse button + Middle mouse button
 
-PS/2 to Amiga mouse translator tested on:
+Hardware:
 
-* Amiga CD32
-* optical mouse Perixx PERIMICE-201 PS/2
+* Tested on: Perixx PERIMICE-201 PS/2, Logitech M-SBF96 PS/2
+* Doesn't work with: Genius DX-110 PS/2
 * DFRobot Beetle Board SKU: DFR0282, compatible with Arduino Leonardo
+* DB9 female plug
 
 The project used a modified library: https://github.com/getis/Arduino-PS2-Mouse-Handler
 

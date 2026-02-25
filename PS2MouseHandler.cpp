@@ -111,14 +111,13 @@ int PS2MouseHandler::try_initialise() {
   set_resolution(0);
   set_scaling_2_1();
   set_sample_rate(10);
-  delay(1);
   return 0; // OK
 }
 
 int PS2MouseHandler:: get_device_id(){
   write(0xf2); // Ask mouse for device ID.
-  int id =  read_byte(); // Read first byte - gives overall device id
-  read_byte(); // try to read second byte if sent - refines device type - not needed
+  read_byte(); // // Read Ack Byte
+  int id =  read_byte(); // Read second byte - gives device id
   return id;
 }
 
@@ -232,23 +231,31 @@ void PS2MouseHandler::hold_incoming_data() {
   pull_low(_clock_pin);
 }
 
+void PS2MouseHandler::release_incoming_data() {
+  pull_high(_clock_pin);
+}
+
 void PS2MouseHandler::get_data() {
   _last_status = _status; // save copy of status byte
 
   write(0xeb); // Send Read Data
-  read_byte(); // Read Ack Byte
+  int ack = read_byte(); // Read Ack Byte
+  if (ack == 250) {
+    _status = read_byte(); // Status byte
+    _x_movement = read_movement_9(bitRead(_status, 4)); // X Movement Packet
+    _y_movement = read_movement_9(bitRead(_status, 5)); // Y Movement Packet
 
-  _status = read_byte(); // Status byte
-  _x_movement = read_movement_9(bitRead(_status, 4)); // X Movement Packet
-  _y_movement = read_movement_9(bitRead(_status, 5)); // Y Movement Packet
-
-  if (_device_id > 0){
-    // read scroll wheel
-    _z_movement = read_movement_z(); // Z Movement Packet
+    if (_device_id > 0) {
+      // read scroll wheel
+      _z_movement = read_movement_z(); // Z Movement Packet
+    }
+    else {
+      _z_movement = 0;
+    }
   }
-  else {
-    _z_movement = 0;
-  };
+  //else {
+    //write(0xfe); //Resend Data Request
+  //}
 }
 
 int16_t PS2MouseHandler::read_movement_9(bool sign_bit) {

@@ -2,14 +2,15 @@
 
 Five levels of mouse speed:
 
-* Speed stored in EEPROM memory.
-* Increase speed: Middle mouse button
-* Decrease speed: Right mouse button + Middle mouse button
+* DPI stored in EEPROM memory.
+* DPI change: Middle mouse button
 
 Hardware:
 
-* Tested on: Perixx PERIMICE-201 PS/2, Logitech M-SBF96 PS/2
-* Doesn't work with: Genius DX-110 PS/2
+* Tested on: 
+* Perixx PERIMICE-201 PS/2
+* Logitech M-SBF96 PS/2
+* Genius DX-110 PS/2
 * DFRobot Beetle Board SKU: DFR0282, compatible with Arduino Leonardo
 * DB9 female plug
 

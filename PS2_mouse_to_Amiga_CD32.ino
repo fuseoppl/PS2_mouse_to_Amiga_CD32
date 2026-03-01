@@ -1,17 +1,20 @@
-//PS/2 to Amiga CD32 mouse translator v 3.2
-//Tested on: Perixx PERIMICE-201 PS/2, Logitech M-SBF96 PS/2
-//Doesn't work with: Genius DX-110 PS/2
+//PS/2 to Amiga CD32 mouse translator v 3.3
+//Tested on:
+//Perixx PERIMICE-201 PS/2
+//Logitech M-SBF96 PS/2
+//Genius DX-110 PS/2
 //Five levels of mouse speed
-//Speed stored in EEPROM memory
-//Increase speed: Middle mouse button
-//Decrease speed: Right mouse button + Middle mouse button
+//DPI stored in EEPROM memory
+//DPI change: Middle mouse button
 #include <avr/wdt.h>
 #include <EEPROM.h>
 //PS2MouseHandler.h modified library! - do not use the original one!
 //keep the modified library files directly in the sketch directory
 #include "PS2MouseHandler.h"
 
-//#define SERIALDEBUGGER
+#define GENIUS
+//#define MOUSEDEBUGGER
+//#define PULSEDEBUGGER
 
 //=======================================//
 //   DFRobot Beetle Board
@@ -33,22 +36,25 @@
 #define LED          13 //internal LED
 //=======================================//
 
-#define speedHighDiv 2 //2
-#define speedLowDiv  10 //10
+#define DPIHigh 3
 
-const char* firmwareRevision    = "3.2";
-volatile uint16_t pinStateDelay = 5;   //5 us, half the length of one pulse
-volatile int16_t  m_max         = 10;   //25 maximum number of pulses per cycle
+const char* firmwareRevision    = "3.3";
+volatile uint16_t pinStateDelay = 2;   //5 us, half the length of one pulse
+volatile int16_t  m_max         = 10;   //10 maximum number of pulses per cycle
 bool speedState                 = 0;
-byte speedDiv                   = speedLowDiv;
+byte speedDiv                   = 1;
+byte speedDPI                   = 0;
+volatile int16_t x_m            = 0;
+volatile int16_t y_m            = 0;
+volatile int16_t z_m            = 0;
+bool reporting_mode_read_data   = true;
 
 PS2MouseHandler mouse(MOUSE_CLOCK, MOUSE_DATA);
 
 void setup() {
   Serial.begin(250000);
-
-  speedDiv = EEPROM.read(0);
-  if (speedDiv < speedHighDiv || speedDiv > speedLowDiv) speedDiv = speedLowDiv;
+  speedDPI = EEPROM.read(0);
+  if (speedDPI > DPIHigh) speedDPI = 0;
   pinMode(Vpin,    OUTPUT);
   pinMode(VQpin,   OUTPUT);
   pinMode(Hpin,    OUTPUT);
@@ -61,41 +67,69 @@ void setup() {
   digitalWrite(ButtonM, HIGH);
   digitalWrite(LED,     HIGH);
 
-  if (mouse.initialise() != 0) {
-    Serial.println("MOUSE_ERROR");
+  int _mouse_Init = mouse.initialise();
+  if (_mouse_Init != 0xFA) {
+    Serial.print("MOUSE_ERROR:");
+    Serial.println(_mouse_Init);
     Serial.flush();
     digitalWrite(LED, LOW);
     wdt_reset();
-    wdt_enable(WDTO_120MS);
+    wdt_enable(WDTO_15MS);
     while (1) {;}
+  }
+  else {
+    mouse.set_resolution(speedDPI);
+    Serial.print("MOUSE_TYPE:");
+    Serial.println(mouse.get_device_id());
+    Serial.print("MOUSE_STAT:");
+    Serial.println(mouse.get_status());
+    Serial.print("MOUSE_RESO:");
+    Serial.println(mouse.get_resolution());
+    Serial.print("MOUSE_RATE:");
+    Serial.println(mouse.get_rate());
+    Serial.print("FIRMWARE__:");
+    Serial.println(firmwareRevision);
+    Serial.flush();
   }
 
   digitalWrite(LED, LOW);
+
+  #if defined(GENIUS)
+    reporting_mode_read_data = false;
+  #endif
 }
 
 void loop() {
-  mouse.get_device_id(); //reset mouse counters and test mouse
-  mouse.get_data();
+  mouse.get_device_id(); //reset mouse counters 
+  
+  if (mouse.mouse_timeout()) { //check mouse
+    wdt_reset();
+    wdt_enable(WDTO_15MS);
+    while (1) {;}
+  }  
+  mouse.get_data(true);
 
   digitalWrite(ButtonL, !mouse.button(0));
   digitalWrite(ButtonR, !mouse.button(2));
   digitalWrite(ButtonM, !mouse.button(1));
 
-  int16_t x_m = mouse.x_movement();
-  int16_t y_m = mouse.y_movement();
-  int16_t z_m = mouse.z_movement();
+  x_m = mouse.x_movement();
+  y_m = mouse.y_movement();
+  z_m = mouse.z_movement();
 
   if (!speedState && mouse.button(1)) {
-    speedDiv = (mouse.button(2)) ?  speedDiv + 2 : speedDiv - 2;
-    if (speedDiv < speedHighDiv) speedDiv = speedHighDiv;
-    if (speedDiv > speedLowDiv) speedDiv = speedLowDiv;
-    EEPROM.write(0, speedDiv);
-    delay(10);
+      if (speedDPI < DPIHigh) speedDPI += 1;
+      else speedDPI = 0;
+      EEPROM.write(0, speedDPI);
+      delay(10);
+      mouse.set_resolution(speedDPI);
+      Serial.print("MOUSE_RESO:");
+      Serial.println(mouse.get_resolution());
+      Serial.flush();
   }
-
   speedState = mouse.button(1); //before changing the speed again, you must release the middle mouse button
 
-  #if defined(SERIALDEBUGGER)
+  #if defined(MOUSEDEBUGGER)
     if (x_m != 0 || y_m != 0 || z_m != 0) {
       Serial.print(x_m);
       Serial.print("*");
@@ -104,8 +138,15 @@ void loop() {
       Serial.println(z_m);
       Serial.flush();
     }
+    else {
+      Serial.print(mouse.get_status());
+      Serial.print("*");
+      Serial.print(mouse.get_resolution());
+      Serial.print("*");
+      Serial.println(mouse.get_rate());
+      Serial.flush();
+    }
   #endif
-
 //  if (z_m == 0) {
     if (x_m != 0 || y_m != 0) {
       bool HcounterIsUp = (x_m >= 0) ? true : false;
@@ -116,7 +157,7 @@ void loop() {
         x_m = _x_m + 0.5; //rounding
         
         if (x_m < 1) x_m = 1;
-        if (x_m > m_max) x_m = m_max; //too high a value will overclock the Amiga counter
+        if (x_m > m_max) x_m = m_max;
       }
 
       bool VcounterIsUp = (y_m >= 0) ? false : true;
@@ -127,10 +168,23 @@ void loop() {
         y_m = _y_m + 0.5; //rounding
 
         if (y_m < 1) y_m = 1;
-        if (y_m > m_max) y_m = m_max; //too high a value will overclock the Amiga counter
+        if (y_m > m_max) y_m = m_max;
       }
 
-      pulseGenerator(HcounterIsUp, VcounterIsUp, pinStateDelay, x_m, y_m); 
+    #if defined(PULSEDEBUGGER)
+      if (x_m != 0 || y_m != 0) {
+        Serial.print(x_m);
+        Serial.print("*");
+        Serial.println(y_m);
+        Serial.flush();
+      }
+    #endif
+
+      pulseGenerator(HcounterIsUp, VcounterIsUp, pinStateDelay, x_m, y_m);
+
+      x_m = 0;
+      y_m = 0;
+      z_m = 0;
     }
 //  }
 //  else {

@@ -3,11 +3,15 @@
 #include "PS2MouseHandler.h"
 
 PS2MouseHandler::PS2MouseHandler(int clock_pin, int data_pin) {
+  _mouse_timeout = false;
   _clock_pin = clock_pin;
   _data_pin = data_pin;
-  _device_id = 0x00;
-  _no_mouse = false;
-  _last_status = 0;
+  _device_id = 0x0;
+  _last_status = 0x0;
+}
+
+bool PS2MouseHandler::mouse_timeout() {
+  return _mouse_timeout;
 }
 
 int PS2MouseHandler::clock_pin() {
@@ -16,10 +20,6 @@ int PS2MouseHandler::clock_pin() {
 
 int PS2MouseHandler::data_pin() {
   return _data_pin;
-}
-
-int PS2MouseHandler::device_id () {
-  return _device_id;
 }
 
 int PS2MouseHandler::status () {
@@ -86,94 +86,94 @@ int PS2MouseHandler::initialise() {
 int PS2MouseHandler::try_initialise() {
   pull_high(_clock_pin); // idle state
   pull_high(_data_pin);
-  delay(500); // let mouse power on
-  write(0xff); // Send Reset to the mouse
 
-  if (_no_mouse){
-    return 100; // no mouse
-  }
+  if (reset_mode() != _ACK_) return _NOACK_; //COMMUNICATION ERROR
+  if (read_byte()  != _BAT_) return _NOACK_; //BAT ERROR
+  read_byte(); //read dummy byte
 
-  uint8_t bat_code = read_byte();  // Read BAT completion code
-
-  if (bat_code == 0xFC){ // error?
-    _no_mouse = true;
-    return 101; // BAT failed
-  }
-
-  read_byte();  // Device ID - ignore for now - should be 0x00 for mouse
-  disable_data_reporting();
-  set_remote_mode();
   // set scroll wheel mode if available
-  set_sample_rate(200);
-  set_sample_rate(100);
-  set_sample_rate(80); 
+  if (set_sample_rate(200) != _ACK_) return _NOACK_;
+  if (set_sample_rate(100) != _ACK_) return _NOACK_;
+  if (set_sample_rate(80)  != _ACK_) return _NOACK_; 
   _device_id = get_device_id(); // 0x00 = no scroll wheel
-  set_resolution(0);
-  set_scaling_2_1();
-  set_sample_rate(10);
-  return 0; // OK
+
+  if (set_resolution(0)    != _ACK_) return _NOACK_;
+  if (set_scaling_1_1()    != _ACK_) return _NOACK_;
+  if (set_sample_rate(200) != _ACK_) return _NOACK_; //10, 20, 40, 60, 80, 100, 200
+
+  return _ACK_; // OK
 }
 
-int PS2MouseHandler:: get_device_id(){
+uint8_t PS2MouseHandler::reset_mode() {
+  write(0xff);
+  uint8_t ack = read_byte(); // Read Ack Byte
+  return ack;
+}
+
+uint8_t PS2MouseHandler::read_data() {
+  write(0xeb);
+  uint8_t ack = read_byte(); // Read Ack Byte
+  return ack;
+}
+
+uint8_t PS2MouseHandler:: get_device_id(){
   write(0xf2); // Ask mouse for device ID.
   read_byte(); // // Read Ack Byte
-  int id =  read_byte(); // Read second byte - gives device id
+  uint8_t id =  read_byte(); // Read second byte - gives device id
   return id;
 }
 
-int PS2MouseHandler::set_remote_mode() {
-  write(0xf0);
-  int ack = read_byte(); // Read Ack Byte
-  //_mode = PS2_MOUSE_REMOTE;
+uint8_t PS2MouseHandler::set_remote_mode() {
+  write(0xf0); //set MOUSE_REMOTE
+  uint8_t ack = read_byte(); // Read Ack Byte
   return ack;
 }
 
-int PS2MouseHandler::set_stream_mode() {
-  write(0xea);
-  int ack = read_byte(); // Read Ack Byte
-  //_mode = PS2_MOUSE_STREAM;
+uint8_t PS2MouseHandler::set_stream_mode() {
+  write(0xea); //set MOUSE_STREAM
+  uint8_t ack = read_byte(); // Read Ack Byte
   return ack;
 }
 
-int PS2MouseHandler::set_sample_rate(int rate) {
+uint8_t PS2MouseHandler::set_sample_rate(uint8_t rate) {
   write(0xf3); // Tell the mouse we are going to set the sample rate.
-  int ack = read_byte(); // Read Ack Byte
+  uint8_t ack = read_byte(); // Read Ack Byte
   write(rate); // Send Set Sample Rate
-  if (read_byte() == 250 && ack == 250) return ack; // Read ack byte
+  if (read_byte() == _ACK_ && ack == _ACK_) return ack; // Read ack byte
   else return 0;
 }
 
-int PS2MouseHandler::set_scaling_2_1() {
+uint8_t PS2MouseHandler::set_scaling_2_1() {
   write(0xe7); // Set the scaling to 2:1
-  int ack = read_byte(); // Read Ack Byte
+  uint8_t ack = read_byte(); // Read Ack Byte
   return ack;
 }
 
-int PS2MouseHandler::set_scaling_1_1() {
+uint8_t PS2MouseHandler::set_scaling_1_1() {
   write(0xe6); // set the scaling to 1:1
-  int ack = read_byte(); // Read Ack Byte
+  uint8_t ack = read_byte(); // Read Ack Byte
   return ack;
 }
 
 // This only effects data reporting in Stream mode.
-int PS2MouseHandler::enable_data_reporting() {
+uint8_t PS2MouseHandler::enable_data_reporting() {
     write(0xf4); // Send enable data reporting
-    int ack = read_byte(); // Read Ack Byte
+    uint8_t ack = read_byte(); // Read Ack Byte
     return ack;
 }
 
 // Disabling data reporting in Stream Mode will make it behave like Remote Mode
-int PS2MouseHandler::disable_data_reporting() {
+uint8_t PS2MouseHandler::disable_data_reporting() {
     write(0xf5); // Send disable data reporting
-    int ack = read_byte(); // Read Ack Byte
+    uint8_t ack = read_byte(); // Read Ack Byte
     return ack;
 }
 
-int PS2MouseHandler::set_resolution(int resolution) {
+uint8_t PS2MouseHandler::set_resolution(uint8_t resolution) {
   write(0xe8); // Send Set Resolution
-  int ack = read_byte(); // Read ack Byte
+  uint8_t ack = read_byte(); // Read ack Byte
   write(resolution); // Send resolution setting
-  if (read_byte() == 250 && ack == 250) return ack; // Read ack byte
+  if (read_byte() == _ACK_ && ack == _ACK_) return ack; // Read ack byte
   else return 0;
 }
 
@@ -194,11 +194,10 @@ void PS2MouseHandler::write(int data) {
     if (millis() - start_time >= 100) {
       // no connection to mouse
       pull_high(_data_pin); // back to waiting
-      _no_mouse = true;
+      _mouse_timeout = true;
       return;
     }
   } 
-  _no_mouse = false; // connection to mouse OK
   // clock is low, and we are clear to send data
   for (i=0; i < 8; i++) {
     if (data & 0x01) {
@@ -225,6 +224,7 @@ void PS2MouseHandler::write(int data) {
   while (digitalRead(_data_pin)) {;} // wait for mouse to take over data line
   while (digitalRead(_clock_pin)) {;} // wait for mouse to take over clock
   while ((!digitalRead(_clock_pin)) && (!digitalRead(_data_pin))) {;} // wait for mouse to release clock and data
+  _mouse_timeout = false;
 }
 
 void PS2MouseHandler::hold_incoming_data() {
@@ -235,15 +235,49 @@ void PS2MouseHandler::release_incoming_data() {
   pull_high(_clock_pin);
 }
 
-void PS2MouseHandler::get_data() {
+uint8_t PS2MouseHandler::get_status() {
+  write(0xe9);
+  int ack = read_byte(); // Read Ack Byte
+  uint8_t _statusRequested = read_byte();
+  uint8_t _resolutionRequested = read_byte();
+  uint8_t _rateRequested = read_byte();
+  return _statusRequested;
+}
+
+uint8_t PS2MouseHandler::get_resolution() {
+  write(0xe9);
+  int ack = read_byte(); // Read Ack Byte
+  uint8_t _statusRequested = read_byte();
+  uint8_t _resolutionRequested = read_byte();
+  uint8_t _rateRequested = read_byte();
+  return _resolutionRequested;
+}
+
+uint8_t PS2MouseHandler::get_rate() {
+  write(0xe9);
+  int ack = read_byte(); // Read Ack Byte
+  uint8_t _statusRequested = read_byte();
+  uint8_t _resolutionRequested = read_byte();
+  uint8_t _rateRequested = read_byte();
+  return _rateRequested;
+}
+
+void PS2MouseHandler::get_data(bool reporting_mode) {
   _last_status = _status; // save copy of status byte
 
-  write(0xeb); // Send Read Data
-  int ack = read_byte(); // Read Ack Byte
-  if (ack == 250) {
+  int ack = _NOACK_;
+
+  if (reporting_mode) {
+    ack = read_data(); // Send Read Data
+  }
+  else {
+    ack = enable_data_reporting();
+  }
+  
+  if (ack == _ACK_) {
     _status = read_byte(); // Status byte
-    _x_movement = read_movement_9(bitRead(_status, 4)); // X Movement Packet
-    _y_movement = read_movement_9(bitRead(_status, 5)); // Y Movement Packet
+    _x_movement = read_movement_xy(bitRead(_status, 4)); // X Movement Packet
+    _y_movement = read_movement_xy(bitRead(_status, 5)); // Y Movement Packet
 
     if (_device_id > 0) {
       // read scroll wheel
@@ -253,12 +287,16 @@ void PS2MouseHandler::get_data() {
       _z_movement = 0;
     }
   }
-  //else {
-    //write(0xfe); //Resend Data Request
-  //}
+  else {
+    ;
+  }
+
+  if (!reporting_mode) {
+    disable_data_reporting();
+  } 
 }
 
-int16_t PS2MouseHandler::read_movement_9(bool sign_bit) {
+int16_t PS2MouseHandler::read_movement_xy(bool sign_bit) {
   // movement data is a 9 bit signed int using status bit and data reading
   int16_t value = read_byte();
   // use status bit to get sign of reading
@@ -295,8 +333,9 @@ uint8_t PS2MouseHandler::read_byte() {
 
   // read start bit but check for timeout
   while (digitalRead(_clock_pin)) {
-    if (millis() - start_time > 100) {
+    if (millis() - start_time > 600) {
       // timeout
+      _mouse_timeout = true;
       return 0;
     }
   }
@@ -308,6 +347,7 @@ uint8_t PS2MouseHandler::read_byte() {
   }
   read_bit(); // Partiy Bit
   read_bit(); // Stop bit should be 1
+  _mouse_timeout = false;
   return data;
 }
 

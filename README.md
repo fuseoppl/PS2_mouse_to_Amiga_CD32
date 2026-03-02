@@ -1,6 +1,6 @@
 # PS/2 mouse to Amiga CD32
 
-Five levels of mouse speed:
+Seven levels of mouse speed:
 
 * DPI stored in EEPROM memory.
 * DPI change: Middle mouse button
@@ -12,7 +12,6 @@ Hardware:
 * Logitech M-SBF96 PS/2
 * Genius DX-110 PS/2
 * DFRobot Beetle Board SKU: DFR0282, compatible with Arduino Leonardo
-* DB9 female plug
 
 DFRobot Beetle Board <-> Amiga DB9
 

@@ -94,11 +94,11 @@ int CD32PS2MouseHandler::try_initialise() {
   // set scroll wheel mode if available
   if (set_sample_rate(200) != _ACK_) return _NOACK_;
   if (set_sample_rate(100) != _ACK_) return _NOACK_;
-  if (set_sample_rate(80)  != _ACK_) return _NOACK_; 
-  _device_id = get_device_id(); // 0x00 = no scroll wheel
+  if (set_sample_rate(80)  != _ACK_) return _NOACK_;
+  _device_id = get_device_id(); // 0x0 = no scroll wheel, 0x3 = intellimouse
 
-  if (set_resolution(0)    != _ACK_) return _NOACK_;
-  if (set_scaling_1_1()    != _ACK_) return _NOACK_;
+  if (set_resolution(0)    != _ACK_) return _NOACK_; //0, 1, 2, 3
+  if (set_scaling_1_1()    != _ACK_) return _NOACK_; //_1_1, _2_1
   if (set_sample_rate(200) != _ACK_) return _NOACK_; //10, 20, 40, 60, 80, 100, 200
 
   return _ACK_; // OK

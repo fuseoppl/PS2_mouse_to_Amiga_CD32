@@ -30,7 +30,7 @@ class CD32PS2MouseHandler
     int try_initialise();
 
   public:
-    CD32PS2MouseHandler(int, int);//, int mode = PS2_MOUSE_STREAM);
+    CD32PS2MouseHandler(int, int);
     int initialise();
     bool mouse_timeout();
     int clock_pin();
@@ -40,7 +40,6 @@ class CD32PS2MouseHandler
     uint8_t get_status();
     uint8_t get_resolution();
     uint8_t get_rate();
-    //int device_id();
     int status();
     int x_movement();
     int y_movement();

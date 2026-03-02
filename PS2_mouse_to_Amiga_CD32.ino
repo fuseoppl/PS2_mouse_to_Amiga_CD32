@@ -3,7 +3,7 @@
 //Perixx PERIMICE-201 PS/2
 //Logitech M-SBF96 PS/2
 //Genius DX-110 PS/2
-//Five levels of mouse speed
+//Seven levels of mouse speed
 //DPI stored in EEPROM memory
 //DPI change: Middle mouse button
 #include <avr/wdt.h>
@@ -37,8 +37,8 @@
 #define SkipMax 3
 
 const char* firmwareRevision    = "4.0";
-volatile uint16_t pinStateDelay = 2;   //5 us, half the length of one pulse
-volatile int16_t  m_max         = 10;   //10 maximum number of pulses per cycle
+volatile uint16_t pinStateDelay = 3;   //2 us, half the length of one pulse
+volatile int16_t  m_max         = 10;  //10 maximum number of pulses per cycle
 bool speedState                 = 0;
 byte xySkip                     = 0;
 byte loopCounter                = 0;
@@ -82,9 +82,9 @@ void setup() {
     mouse.set_resolution(speedDPI);
     Serial.print("TYPE:");
     Serial.println(mouse.get_device_id());
-    Serial.print("STATUs:");
+    Serial.print("STATUS:");
     Serial.println(mouse.get_status());
-    Serial.print("RESOlution:");
+    Serial.print("RESOLUTION:");
     Serial.println(mouse.get_resolution());
     Serial.print("RATE:");
     Serial.println(mouse.get_rate());

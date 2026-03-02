@@ -1,4 +1,4 @@
-//PS/2 to Amiga CD32 mouse translator v 3.3
+//PS/2 to Amiga CD32 mouse translator v 4.0
 //Tested on:
 //Perixx PERIMICE-201 PS/2
 //Logitech M-SBF96 PS/2
@@ -8,13 +8,10 @@
 //DPI change: Middle mouse button
 #include <avr/wdt.h>
 #include <EEPROM.h>
-//PS2MouseHandler.h modified library! - do not use the original one!
-//keep the modified library files directly in the sketch directory
-#include "PS2MouseHandler.h"
+#include "CD32PS2MouseHandler.h"
 
-#define GENIUS
+//#define GENIUS
 //#define MOUSEDEBUGGER
-//#define PULSEDEBUGGER
 
 //=======================================//
 //   DFRobot Beetle Board
@@ -36,25 +33,29 @@
 #define LED          13 //internal LED
 //=======================================//
 
-#define DPIHigh 3
+#define DPIMax 3
+#define SkipMax 3
 
-const char* firmwareRevision    = "3.3";
+const char* firmwareRevision    = "4.0";
 volatile uint16_t pinStateDelay = 2;   //5 us, half the length of one pulse
 volatile int16_t  m_max         = 10;   //10 maximum number of pulses per cycle
 bool speedState                 = 0;
-byte speedDiv                   = 1;
+byte xySkip                     = 0;
+byte loopCounter                = 0;
 byte speedDPI                   = 0;
 volatile int16_t x_m            = 0;
 volatile int16_t y_m            = 0;
 volatile int16_t z_m            = 0;
 bool reporting_mode_read_data   = true;
 
-PS2MouseHandler mouse(MOUSE_CLOCK, MOUSE_DATA);
+CD32PS2MouseHandler mouse(MOUSE_CLOCK, MOUSE_DATA);
 
 void setup() {
   Serial.begin(250000);
   speedDPI = EEPROM.read(0);
-  if (speedDPI > DPIHigh) speedDPI = 0;
+  if (speedDPI > DPIMax) speedDPI = 0;
+  xySkip = EEPROM.read(1);
+  if (xySkip > SkipMax) xySkip = 0;
   pinMode(Vpin,    OUTPUT);
   pinMode(VQpin,   OUTPUT);
   pinMode(Hpin,    OUTPUT);
@@ -79,15 +80,17 @@ void setup() {
   }
   else {
     mouse.set_resolution(speedDPI);
-    Serial.print("MOUSE_TYPE:");
+    Serial.print("TYPE:");
     Serial.println(mouse.get_device_id());
-    Serial.print("MOUSE_STAT:");
+    Serial.print("STATUs:");
     Serial.println(mouse.get_status());
-    Serial.print("MOUSE_RESO:");
+    Serial.print("RESOlution:");
     Serial.println(mouse.get_resolution());
-    Serial.print("MOUSE_RATE:");
+    Serial.print("RATE:");
     Serial.println(mouse.get_rate());
-    Serial.print("FIRMWARE__:");
+    Serial.print("LOOP_SKIP:");
+    Serial.println(xySkip);
+    Serial.print("FIRMWARE:");
     Serial.println(firmwareRevision);
     Serial.flush();
   }
@@ -107,25 +110,45 @@ void loop() {
     wdt_enable(WDTO_15MS);
     while (1) {;}
   }  
-  mouse.get_data(true);
+  mouse.get_data(reporting_mode_read_data);
 
   digitalWrite(ButtonL, !mouse.button(0));
   digitalWrite(ButtonR, !mouse.button(2));
   digitalWrite(ButtonM, !mouse.button(1));
 
-  x_m = mouse.x_movement();
-  y_m = mouse.y_movement();
+  if (loopCounter > xySkip) {
+    x_m = mouse.x_movement();
+    y_m = mouse.y_movement();
+    loopCounter = 0;
+  }
+  else {
+    x_m = 0;
+    y_m = 0;
+  }
+
   z_m = mouse.z_movement();
 
   if (!speedState && mouse.button(1)) {
-      if (speedDPI < DPIHigh) speedDPI += 1;
-      else speedDPI = 0;
-      EEPROM.write(0, speedDPI);
-      delay(10);
-      mouse.set_resolution(speedDPI);
-      Serial.print("MOUSE_RESO:");
-      Serial.println(mouse.get_resolution());
-      Serial.flush();
+    if (speedDPI == 0 && xySkip > 0) {
+      xySkip -= 1;
+    }
+    else {
+      if (speedDPI < DPIMax) speedDPI += 1;
+      else {
+        speedDPI = 0;
+        xySkip = SkipMax;
+      }
+    }
+    EEPROM.write(0, speedDPI);
+    delay(10);
+    EEPROM.write(1, xySkip);
+    delay(10);
+    mouse.set_resolution(speedDPI);
+    Serial.print("RESOLUTION:");
+    Serial.println(mouse.get_resolution());
+    Serial.print("LOOP_SKIP:");
+    Serial.println(xySkip);
+    Serial.flush();
   }
   speedState = mouse.button(1); //before changing the speed again, you must release the middle mouse button
 
@@ -152,39 +175,14 @@ void loop() {
       bool HcounterIsUp = (x_m >= 0) ? true : false;
       x_m = abs(x_m);
     
-      if (x_m > 0) {
-        double _x_m = x_m / (double)speedDiv;
-        x_m = _x_m + 0.5; //rounding
-        
-        if (x_m < 1) x_m = 1;
-        if (x_m > m_max) x_m = m_max;
-      }
+      if (x_m > m_max) x_m = m_max;
 
       bool VcounterIsUp = (y_m >= 0) ? false : true;
       y_m = abs(y_m);
 
-      if (y_m > 0) {
-        double _y_m = y_m / (double)speedDiv;
-        y_m = _y_m + 0.5; //rounding
-
-        if (y_m < 1) y_m = 1;
-        if (y_m > m_max) y_m = m_max;
-      }
-
-    #if defined(PULSEDEBUGGER)
-      if (x_m != 0 || y_m != 0) {
-        Serial.print(x_m);
-        Serial.print("*");
-        Serial.println(y_m);
-        Serial.flush();
-      }
-    #endif
+      if (y_m > m_max) y_m = m_max;
 
       pulseGenerator(HcounterIsUp, VcounterIsUp, pinStateDelay, x_m, y_m);
-
-      x_m = 0;
-      y_m = 0;
-      z_m = 0;
     }
 //  }
 //  else {
@@ -192,6 +190,7 @@ void loop() {
 //    bool VcounterIsUp = (z_m >= 0) ? false : true;
 //    pulseGenerator(false, VcounterIsUp, pinStateDelay, 0, 3);
 // }
+loopCounter++;
 }
 
 void pulseGenerator(bool HcounterIsUp, bool VcounterIsUp ,uint16_t pinStateDelay, uint8_t HPulsesPerStep, uint8_t VPulsesPerStep) {

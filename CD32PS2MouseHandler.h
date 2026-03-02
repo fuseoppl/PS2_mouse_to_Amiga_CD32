@@ -1,12 +1,12 @@
-#ifndef PS2MouseHandler_h
+#ifndef CD32PS2MouseHandler_h
 
-#define PS2MouseHandler_h
+#define CD32PS2MouseHandler_h
 
 #define _ACK_ 0xFA
 #define _NOACK_ 0xFC
 #define _BAT_ 0xAA
 
-class PS2MouseHandler
+class CD32PS2MouseHandler
 {
   private:
     bool _mouse_timeout;
@@ -30,7 +30,7 @@ class PS2MouseHandler
     int try_initialise();
 
   public:
-    PS2MouseHandler(int, int);//, int mode = PS2_MOUSE_STREAM);
+    CD32PS2MouseHandler(int, int);//, int mode = PS2_MOUSE_STREAM);
     int initialise();
     bool mouse_timeout();
     int clock_pin();

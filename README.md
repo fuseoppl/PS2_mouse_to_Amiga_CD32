@@ -7,17 +7,12 @@ Five levels of mouse speed:
 
 Hardware:
 
-* Tested on: 
+* Tested on:
 * Perixx PERIMICE-201 PS/2
 * Logitech M-SBF96 PS/2
 * Genius DX-110 PS/2
 * DFRobot Beetle Board SKU: DFR0282, compatible with Arduino Leonardo
 * DB9 female plug
-
-The project used a modified library: https://github.com/getis/Arduino-PS2-Mouse-Handler
-
-* PS2MouseHandler library is modified, so do not use the original one!
-* Keep the modified library files directly in the sketch directory.
 
 DFRobot Beetle Board <-> Amiga DB9
 

@@ -3,6 +3,7 @@
 //Perixx PERIMICE-201 PS/2
 //Logitech M-SBF96 PS/2
 //Genius DX-110 PS/2
+//NEW3P PS/2
 //Seven levels of mouse speed
 //DPI stored in EEPROM memory
 //DPI change: Middle mouse button
@@ -36,7 +37,7 @@
 #define DPIMax 3
 #define SkipMax 3
 
-const char* firmwareRevision    = "4.0";
+const char* firmwareRevision    = "4.1";
 volatile uint16_t pinStateDelay = 3;   //2 us, half the length of one pulse
 volatile int16_t  m_max         = 10;  //10 maximum number of pulses per cycle
 bool speedState                 = 0;
@@ -51,7 +52,10 @@ bool reporting_mode_read_data   = true;
 CD32PS2MouseHandler mouse(MOUSE_CLOCK, MOUSE_DATA);
 
 void setup() {
-  Serial.begin(250000);
+  #if defined(MOUSEDEBUGGER)
+    Serial.begin(2000000);
+  #endif
+
   speedDPI = EEPROM.read(0);
   if (speedDPI > DPIMax) speedDPI = 0;
   xySkip = EEPROM.read(1);
@@ -69,10 +73,17 @@ void setup() {
   digitalWrite(LED,     HIGH);
 
   int _mouse_Init = mouse.initialise();
+
   if (_mouse_Init != 0xFA) {
-    Serial.print("MOUSE_ERROR:");
-    Serial.println(_mouse_Init);
-    Serial.flush();
+
+    #if defined(MOUSEDEBUGGER)
+      Serial.print("MOUSE_ERROR:");
+      Serial.print(_mouse_Init, HEX);
+      Serial.print(";");
+      Serial.println(mouse.mouse_timeout());
+      Serial.flush();
+    #endif
+
     digitalWrite(LED, LOW);
     wdt_reset();
     wdt_enable(WDTO_15MS);
@@ -80,19 +91,22 @@ void setup() {
   }
   else {
     mouse.set_resolution(speedDPI);
-    Serial.print("TYPE:");
-    Serial.println(mouse.get_device_id());
-    Serial.print("STATUS:");
-    Serial.println(mouse.get_status());
-    Serial.print("RESOLUTION:");
-    Serial.println(mouse.get_resolution());
-    Serial.print("RATE:");
-    Serial.println(mouse.get_rate());
-    Serial.print("LOOP_SKIP:");
-    Serial.println(xySkip);
-    Serial.print("FIRMWARE:");
-    Serial.println(firmwareRevision);
-    Serial.flush();
+
+    #if defined(MOUSEDEBUGGER)
+      Serial.print("TYPE:");
+      Serial.println(mouse.get_device_id());
+      Serial.print("STATUS:");
+      Serial.println(mouse.get_status());
+      Serial.print("RESOLUTION:");
+      Serial.println(mouse.get_resolution());
+      Serial.print("RATE:");
+      Serial.println(mouse.get_rate());
+      Serial.print("LOOP_SKIP:");
+      Serial.println(xySkip);
+      Serial.print("FIRMWARE:");
+      Serial.println(firmwareRevision);
+      Serial.flush();
+    #endif
   }
 
   digitalWrite(LED, LOW);
@@ -144,11 +158,14 @@ void loop() {
     EEPROM.write(1, xySkip);
     delay(10);
     mouse.set_resolution(speedDPI);
-    Serial.print("RESOLUTION:");
-    Serial.println(mouse.get_resolution());
-    Serial.print("LOOP_SKIP:");
-    Serial.println(xySkip);
-    Serial.flush();
+
+    #if defined(MOUSEDEBUGGER)
+      Serial.print("RESOLUTION:");
+      Serial.println(mouse.get_resolution());
+      Serial.print("LOOP_SKIP:");
+      Serial.println(xySkip);
+      Serial.flush();
+    #endif
   }
   speedState = mouse.button(1); //before changing the speed again, you must release the middle mouse button
 

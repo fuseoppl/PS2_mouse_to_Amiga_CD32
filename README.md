@@ -12,6 +12,7 @@ Hardware:
 * Logitech M-SBF96 PS/2
 * Genius DX-110 PS/2
 * DFRobot Beetle Board SKU: DFR0282, compatible with Arduino Leonardo
+* NEW3P PS/2
 
 DFRobot Beetle Board <-> Amiga DB9
 
@@ -26,3 +27,4 @@ DFRobot Beetle Board <-> Amiga DB9
 * RX  ->  pin 5
 * D11 ->  pin 1 (Mouse mini DIN plug)
 * SCL ->  pin 5 (Mouse mini DIN plug)
+

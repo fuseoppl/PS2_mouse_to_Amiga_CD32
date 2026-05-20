@@ -13,32 +13,54 @@
 
 //#define GENIUS
 //#define MOUSEDEBUGGER
+#define INITDEBUGGER
+//#define ATMEGA32 //uncomment for ATmega32, comment for ATmega328P
 
 //=======================================//
 //   DFRobot Beetle Board
 //     compatible with
 //    Arduino Leonardo  <-> Amiga DB9
-                        // +vcc <-  pin 7 & pin 4 (Mouse mini DIN plug)
-                        // gnd  <-> pin 8 & pin 3 (Mouse mini DIN plug)
-#define Vpin         A0 // A0    -> pin 1
-#define VQpin        A1 // A1    -> pin 3
-#define Hpin          9 // D9    -> pin 2
-#define HQpin        10 //D10    -> pin 4
-#define ButtonL       2 //SDA    -> pin 6
-#define ButtonR      A2 // A2    -> pin 9
-#define ButtonM       0 // RX    -> pin 5
-//-------------------------------------------------------------------------//
-#define MOUSE_DATA   11 //D11 (Beetle Board) -> pin 1 (Mouse mini DIN plug)
-#define MOUSE_CLOCK   3 //SCL (Beetle Board) -> pin 5 (Mouse mini DIN plug)
-//-------------------------------------------------------------------------//
-#define LED          13 //internal LED
+                          // +  <-  pin 7 & pin 4 (Mouse mini DIN plug)
+                          // -  <-> pin 8 & pin 3 (Mouse mini DIN plug)
+#if defined(ATMEGA32)
+  #define Vpin         A0 // A0  -> pin 1
+  #define VQpin        A1 // A1  -> pin 3
+  #define Hpin          9 // D9  -> pin 2
+  #define HQpin        10 //D10  -> pin 4
+  #define ButtonL       2 //SDA  -> pin 6
+  #define ButtonR      A2 // A2  -> pin 9
+  #define ButtonM       0 // RX  -> pin 5
+  //-------------------------------------------------------------------------//
+  #define MOUSE_DATA   11 //D11  -> pin 1 (Mouse mini DIN plug)
+  #define MOUSE_CLOCK   3 //SCL  -> pin 5 (Mouse mini DIN plug)
+  //-------------------------------------------------------------------------//
+  #define LED          13 //internal LED
+#else
+//mini ultra, china Arduino UNO nano clone https://pl.aliexpress.com/item/1005007492500542.html
+//select Tools->Processor->ATmega328P (Old Bootloader)
+//To avoid problems with the watchdog, it is best to flash a new bootloader or disable the watchdog.
+                          // 5V <-  pin 7 & pin 4 (Mouse mini DIN plug)
+                          //gnd <-> pin 8 & pin 3 (Mouse mini DIN plug)
+  #define Vpin          3 // D3  -> pin 1
+  #define VQpin         5 // D5  -> pin 3
+  #define Hpin          4 // D4  -> pin 2
+  #define HQpin         6 // D6  -> pin 4
+  #define ButtonL       7 // D7  -> pin 6
+  #define ButtonR       8 // D8  -> pin 9
+  #define ButtonM       9 // D9  -> pin 5
+  //-------------------------------------------------------------------------//
+  #define MOUSE_DATA   A4 // A4  -> pin 1 (Mouse mini DIN plug)
+  #define MOUSE_CLOCK  A5 // A5  -> pin 5 (Mouse mini DIN plug)
+  //-------------------------------------------------------------------------//
+  #define LED           13 // internal D2 LED
+#endif
 //=======================================//
 
-#define DPIMax 3
+#define DPIMax  3
 #define SkipMax 3
 
-const char* firmwareRevision    = "4.1";
-volatile uint16_t pinStateDelay = 3;   //2 us, half the length of one pulse
+const char* firmwareRevision    = "4.3";
+volatile uint16_t pinStateDelay = 3;   //3 us, half the length of one pulse
 volatile int16_t  m_max         = 10;  //10 maximum number of pulses per cycle
 bool speedState                 = 0;
 byte xySkip                     = 0;
@@ -52,7 +74,8 @@ bool reporting_mode_read_data   = true;
 CD32PS2MouseHandler mouse(MOUSE_CLOCK, MOUSE_DATA);
 
 void setup() {
-  #if defined(MOUSEDEBUGGER)
+  wdt_disable();
+  #if defined(MOUSEDEBUGGER) || defined(INITDEBUGGER)
     Serial.begin(2000000);
   #endif
 
@@ -74,9 +97,9 @@ void setup() {
 
   int _mouse_Init = mouse.initialise();
 
-  if (_mouse_Init != 0xFA) {
+  while (_mouse_Init != 0xFA) {
 
-    #if defined(MOUSEDEBUGGER)
+    #if defined(INITDEBUGGER)
       Serial.print("MOUSE_ERROR:");
       Serial.print(_mouse_Init, HEX);
       Serial.print(";");
@@ -85,29 +108,30 @@ void setup() {
     #endif
 
     digitalWrite(LED, LOW);
-    wdt_reset();
+    //delay(500);
+    //wdt_reset();
     wdt_enable(WDTO_15MS);
     while (1) {;}
+    //digitalWrite(LED, HIGH);
   }
-  else {
-    mouse.set_resolution(speedDPI);
+  
+  mouse.set_resolution(speedDPI);
 
-    #if defined(MOUSEDEBUGGER)
-      Serial.print("TYPE:");
-      Serial.println(mouse.get_device_id());
-      Serial.print("STATUS:");
-      Serial.println(mouse.get_status());
-      Serial.print("RESOLUTION:");
-      Serial.println(mouse.get_resolution());
-      Serial.print("RATE:");
-      Serial.println(mouse.get_rate());
-      Serial.print("LOOP_SKIP:");
-      Serial.println(xySkip);
-      Serial.print("FIRMWARE:");
-      Serial.println(firmwareRevision);
-      Serial.flush();
-    #endif
-  }
+  #if defined(INITDEBUGGER)
+    Serial.print("TYPE:");
+    Serial.println(mouse.get_device_id());
+    Serial.print("STATUS:");
+    Serial.println(mouse.get_status());
+    Serial.print("RESOLUTION:");
+    Serial.println(mouse.get_resolution());
+    Serial.print("RATE:");
+    Serial.println(mouse.get_rate());
+    Serial.print("LOOP_SKIP:");
+    Serial.println(xySkip);
+    Serial.print("FIRMWARE:");
+    Serial.println(firmwareRevision);
+    Serial.flush();
+  #endif
 
   digitalWrite(LED, LOW);
 
@@ -120,9 +144,9 @@ void loop() {
   mouse.get_device_id(); //reset mouse counters 
   
   if (mouse.mouse_timeout()) { //check mouse
-    wdt_reset();
-    wdt_enable(WDTO_15MS);
-    while (1) {;}
+  //  wdt_reset();
+  //  wdt_enable(WDTO_15MS);
+  //  while (1) {;}
   }  
   mouse.get_data(reporting_mode_read_data);
 

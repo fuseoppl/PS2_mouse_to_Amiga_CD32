@@ -76,6 +76,8 @@ int CD32PS2MouseHandler::initialise() {
   int return_value = 0;
   // poll mouse to get a connection
   do {
+    pull_low(_clock_pin); // idle state
+    pull_low(_data_pin);
     return_value = try_initialise();
     counter ++;
   } while ((return_value != 0) && (counter < 10));
@@ -84,6 +86,7 @@ int CD32PS2MouseHandler::initialise() {
 }
 
 int CD32PS2MouseHandler::try_initialise() {
+  delay(100);
   pull_high(_clock_pin); // idle state
   pull_high(_data_pin);
   delay(100);
@@ -278,11 +281,11 @@ void CD32PS2MouseHandler::write(int data) {
   unsigned long start_time = millis();
   pull_high(_data_pin);
   pull_high(_clock_pin);
-  delayMicroseconds(100); //300
+  delayMicroseconds(50); //300
   pull_low(_clock_pin);
   delayMicroseconds(50); //300
   pull_low(_data_pin);
-  //delayMicroseconds(10); //10
+  //delayMicroseconds(5); //10
   pull_high(_clock_pin); // Start Bit
   // wait for mouse to take control of clock
   while (digitalRead(_clock_pin)) {

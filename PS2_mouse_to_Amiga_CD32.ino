@@ -49,8 +49,8 @@
   #define ButtonR       8 // D8  -> pin 9
   #define ButtonM       9 // D9  -> pin 5
   //-------------------------------------------------------------------------//
-  #define MOUSE_DATA   A4 // A4  -> pin 1 (Mouse mini DIN plug)
-  #define MOUSE_CLOCK  A5 // A5  -> pin 5 (Mouse mini DIN plug)
+  #define MOUSE_DATA   12//A4 // A4  -> pin 1 (Mouse mini DIN plug)
+  #define MOUSE_CLOCK  11//A5 // A5  -> pin 5 (Mouse mini DIN plug)
   //-------------------------------------------------------------------------//
   #define LED           13 // internal D2 LED
 #endif
@@ -59,7 +59,7 @@
 #define DPIMax  3
 #define SkipMax 3
 
-const char* firmwareRevision    = "4.3";
+const char* firmwareRevision    = "4.4";
 volatile uint16_t pinStateDelay = 3;   //3 us, half the length of one pulse
 volatile int16_t  m_max         = 10;  //10 maximum number of pulses per cycle
 bool speedState                 = 0;
@@ -74,7 +74,7 @@ bool reporting_mode_read_data   = true;
 CD32PS2MouseHandler mouse(MOUSE_CLOCK, MOUSE_DATA);
 
 void setup() {
-  wdt_disable();
+  //wdt_disable();
   #if defined(MOUSEDEBUGGER) || defined(INITDEBUGGER)
     Serial.begin(2000000);
   #endif
@@ -109,9 +109,8 @@ void setup() {
 
     digitalWrite(LED, LOW);
     //delay(500);
-    //wdt_reset();
     wdt_enable(WDTO_15MS);
-    while (1) {;}
+    while (1) {delayMicroseconds(2);}
     //digitalWrite(LED, HIGH);
   }
   
@@ -144,9 +143,8 @@ void loop() {
   mouse.get_device_id(); //reset mouse counters 
   
   if (mouse.mouse_timeout()) { //check mouse
-  //  wdt_reset();
-  //  wdt_enable(WDTO_15MS);
-  //  while (1) {;}
+    wdt_enable(WDTO_15MS);
+    while (1) {delayMicroseconds(2);}
   }  
   mouse.get_data(reporting_mode_read_data);
 

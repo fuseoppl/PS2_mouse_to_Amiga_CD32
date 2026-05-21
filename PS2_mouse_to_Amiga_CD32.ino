@@ -59,7 +59,7 @@
 #define DPIMax  3
 #define SkipMax 3
 
-const char* firmwareRevision    = "4.4";
+const char* firmwareRevision    = "4.5";
 volatile uint16_t pinStateDelay = 3;   //3 us, half the length of one pulse
 volatile int16_t  m_max         = 10;  //10 maximum number of pulses per cycle
 bool speedState                 = 0;
@@ -70,6 +70,8 @@ volatile int16_t x_m            = 0;
 volatile int16_t y_m            = 0;
 volatile int16_t z_m            = 0;
 bool reporting_mode_read_data   = true;
+
+unsigned long _millis           = 0;
 
 CD32PS2MouseHandler mouse(MOUSE_CLOCK, MOUSE_DATA);
 
@@ -164,7 +166,13 @@ void loop() {
 
   z_m = mouse.z_movement();
 
-  if (!speedState && mouse.button(1)) {
+  if (!mouse.button(1)) {
+    _millis = millis();
+    speedState = false;
+  }
+
+  if (mouse.button(1) && !speedState && millis() - _millis > 1000) {
+    speedState = true;
     if (speedDPI == 0 && xySkip > 0) {
       xySkip -= 1;
     }
@@ -181,7 +189,7 @@ void loop() {
     delay(10);
     mouse.set_resolution(speedDPI);
 
-    #if defined(MOUSEDEBUGGER)
+    #if defined(INITDEBUGGER)
       Serial.print("RESOLUTION:");
       Serial.println(mouse.get_resolution());
       Serial.print("LOOP_SKIP:");
@@ -189,7 +197,6 @@ void loop() {
       Serial.flush();
     #endif
   }
-  speedState = mouse.button(1); //before changing the speed again, you must release the middle mouse button
 
   #if defined(MOUSEDEBUGGER)
     if (x_m != 0 || y_m != 0 || z_m != 0) {
@@ -205,7 +212,9 @@ void loop() {
       Serial.print("*");
       Serial.print(mouse.get_resolution());
       Serial.print("*");
-      Serial.println(mouse.get_rate());
+      Serial.print(mouse.get_rate());
+      Serial.print("*");
+      Serial.println(xySkip);
       Serial.flush();
     }
   #endif

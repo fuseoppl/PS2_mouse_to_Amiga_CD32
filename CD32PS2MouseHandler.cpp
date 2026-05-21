@@ -74,10 +74,10 @@ int CD32PS2MouseHandler::initialise() {
 
   int counter = 0;
   int return_value = 0;
-  // poll mouse to get a connection
+  // pull mouse to get a connection
   do {
-    //pull_low(_clock_pin); // idle state
-    //pull_low(_data_pin);
+    pull_low(_clock_pin); // idle state
+    pull_low(_data_pin);
     return_value = try_initialise();
     counter ++;
   } while ((return_value != 0) && (counter < 10));
@@ -87,9 +87,9 @@ int CD32PS2MouseHandler::initialise() {
 
 int CD32PS2MouseHandler::try_initialise() {
   delay(100);
-  pull_high(_clock_pin); // idle state
+  pull_high(_clock_pin); // active state
   pull_high(_data_pin);
-  delay(200);
+  delay(100);
   if (reset_mode() != _ACK_) return _NOACK_; //COMMUNICATION ERROR
   if (read_byte()  != _BAT_) return _NOACK_; //BAT ERROR
   read_byte(); //read dummy byte

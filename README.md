@@ -3,7 +3,7 @@
 Seven levels of mouse speed:
 
 * DPI stored in EEPROM memory.
-* DPI change: Middle mouse button
+* DPI change: hold down the middle mouse button for at least 2 seconds
 
 Hardware:
 

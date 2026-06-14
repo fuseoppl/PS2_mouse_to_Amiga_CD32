@@ -1,10 +1,12 @@
 # PS/2 mouse to Amiga CD32
 
-Seven levels of mouse speed:
+Six levels of mouse speed:
+
 * DPI stored in EEPROM memory.
 * DPI change: hold down the middle mouse button for at least 2 seconds
 
 Tested on:
+
 * Perixx PERIMICE-201 PS/2
 * Logitech M-SBF96 PS/2
 * Genius DX-110 PS/2 (uncoment #define GENIUS)

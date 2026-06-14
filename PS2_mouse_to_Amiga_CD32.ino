@@ -1,10 +1,10 @@
-//PS/2 to Amiga CD32 mouse translator v 4.0
+//PS/2 to Amiga CD32 mouse translator v 4.6
 //Tested on:
 //Perixx PERIMICE-201 PS/2
 //Logitech M-SBF96 PS/2
 //Genius DX-110 PS/2
 //NEW3P PS/2
-//Seven levels of mouse speed
+//six levels of mouse speed
 //DPI stored in EEPROM memory
 //DPI change: Middle mouse button
 #include <avr/wdt.h>
@@ -59,12 +59,12 @@
 #define DPIMax  3
 #define SkipMax 3
 
-const char* firmwareRevision    = "4.5";
+const char* firmwareRevision    = "4.6";
 volatile uint16_t pinStateDelay = 3;   //3 us, half the length of one pulse
 volatile int16_t  m_max         = 10;  //10 maximum number of pulses per cycle
 bool speedState                 = 0;
-byte xySkip                     = 0;
-byte loopCounter                = 0;
+byte xySkip                     = 1;
+byte loopCounter                = 2;
 byte speedDPI                   = 0;
 volatile int16_t x_m            = 0;
 volatile int16_t y_m            = 0;
@@ -84,7 +84,12 @@ void setup() {
   speedDPI = EEPROM.read(0);
   if (speedDPI > DPIMax) speedDPI = 0;
   xySkip = EEPROM.read(1);
-  if (xySkip > SkipMax) xySkip = 0;
+  if (xySkip > SkipMax) xySkip = SkipMax;
+  if (xySkip < 1) xySkip = 1;
+  //pinMode(MOUSE_CLOCK, INPUT_PULLUP);
+  //pinMode(MOUSE_DATA,  INPUT_PULLUP);
+  //digitalWrite(MOUSE_CLOCK, HIGH);
+  //digitalWrite(MOUSE_DATA,  HIGH);
   pinMode(Vpin,    OUTPUT);
   pinMode(VQpin,   OUTPUT);
   pinMode(Hpin,    OUTPUT);
@@ -100,7 +105,6 @@ void setup() {
   int _mouse_Init = mouse.initialise();
 
   while (_mouse_Init != 0xFA) {
-
     #if defined(INITDEBUGGER)
       Serial.print("MOUSE_ERROR:");
       Serial.print(_mouse_Init, HEX);
@@ -110,7 +114,8 @@ void setup() {
     #endif
 
     digitalWrite(LED, LOW);
-    //delay(500);
+    //delay(100);
+    //_mouse_Init = mouse.initialise();
     wdt_enable(WDTO_15MS);
     while (1) {delayMicroseconds(2);}
     //digitalWrite(LED, HIGH);
@@ -146,7 +151,7 @@ void loop() {
   
   if (mouse.mouse_timeout()) { //check mouse
     wdt_enable(WDTO_15MS);
-    while (1) {delayMicroseconds(2);}
+    while (1) {delayMicroseconds(10);}
   }  
   mouse.get_data(reporting_mode_read_data);
 
@@ -157,7 +162,7 @@ void loop() {
   if (loopCounter > xySkip) {
     x_m = mouse.x_movement();
     y_m = mouse.y_movement();
-    loopCounter = 0;
+    loopCounter = 2;
   }
   else {
     x_m = 0;
@@ -173,7 +178,7 @@ void loop() {
 
   if (mouse.button(1) && !speedState && millis() - _millis > 1000) {
     speedState = true;
-    if (speedDPI == 0 && xySkip > 0) {
+    if (speedDPI == 0 && xySkip > 1) {
       xySkip -= 1;
     }
     else {
@@ -230,7 +235,9 @@ void loop() {
 
       if (y_m > m_max) y_m = m_max;
 
-      pulseGenerator(HcounterIsUp, VcounterIsUp, pinStateDelay, x_m, y_m);
+      //uint16_t = delayMultiplier = (x_m > y_m) ? x_m : y_m;
+
+      pulseGenerator(HcounterIsUp, VcounterIsUp, pinStateDelay * (uint16_t)xySkip, x_m, y_m);
     }
 //  }
 //  else {
@@ -241,13 +248,17 @@ void loop() {
 loopCounter++;
 }
 
-void pulseGenerator(bool HcounterIsUp, bool VcounterIsUp ,uint16_t pinStateDelay, uint8_t HPulsesPerStep, uint8_t VPulsesPerStep) {
+void pulseGenerator(bool HcounterIsUp, bool VcounterIsUp ,uint16_t _pinStateDelay, uint8_t HPulsesPerStep, uint8_t VPulsesPerStep) {
 
   uint8_t _maxPulsesPerStep = (HPulsesPerStep > VPulsesPerStep) ? HPulsesPerStep : VPulsesPerStep; 
 
+  _pinStateDelay = _pinStateDelay * ((1.0 / (double)_maxPulsesPerStep) * 10.0);
+
+  //Serial.println(_pinStateDelay);
+
   for (int pulses = 0; _maxPulsesPerStep > pulses ; pulses++) {    
 
-    delayMicroseconds(pinStateDelay);
+    delayMicroseconds(_pinStateDelay);
 
     if (HPulsesPerStep > pulses) {
       if (HcounterIsUp) digitalWrite(Hpin,  !digitalRead(Hpin));
@@ -259,7 +270,7 @@ void pulseGenerator(bool HcounterIsUp, bool VcounterIsUp ,uint16_t pinStateDelay
       else              digitalWrite(VQpin, !digitalRead(VQpin));
     }
 
-    delayMicroseconds(pinStateDelay);
+    delayMicroseconds(_pinStateDelay);
 
     if (HPulsesPerStep > pulses) {
       if (HcounterIsUp) digitalWrite(HQpin, !digitalRead(HQpin));

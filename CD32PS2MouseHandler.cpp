@@ -77,7 +77,7 @@ int CD32PS2MouseHandler::initialise() {
   do {
     return_value = try_initialise();
     counter ++;
-  } while ((return_value != 0) && (counter < 10));
+  } while ((return_value != 0) && (counter < 3));
 
   return return_value;
 }
@@ -85,7 +85,7 @@ int CD32PS2MouseHandler::initialise() {
 int CD32PS2MouseHandler::try_initialise() {
   pull_high(_clock_pin); // pull to active state
   pull_high(_data_pin);
-  delay(100);
+  delay(200);
   if (reset_mode() != _ACK_) return _NOACK_; //COMMUNICATION ERROR
   if (read_byte()  != _BAT_) return _NOACK_; //BAT ERROR
   read_byte(); //read dummy byte
@@ -281,19 +281,19 @@ void CD32PS2MouseHandler::write(int data) {
   pull_low(_clock_pin);
   delayMicroseconds(50); //300
   pull_low(_data_pin);
-  delayMicroseconds(10); //10
+  delayMicroseconds(2); //10
   pull_high(_clock_pin); // Start Bit
   // wait for mouse to take control of clock
-  delayMicroseconds(10); //10
+  //delayMicroseconds(10); //10
 
-  while (digitalRead(_clock_pin)) {    
+  while (digitalRead(_clock_pin)) {  
     if (millis() - start_time >= 100) {
       // no connection to mouse
       pull_high(_data_pin); // back to waiting
       _mouse_timeout = true;
       return;
     }
-    delayMicroseconds(2);
+    //delayMicroseconds(2);
   }
 
   // clock is low, and we are clear to send data
@@ -304,8 +304,8 @@ void CD32PS2MouseHandler::write(int data) {
       pull_low(_data_pin);
     }
     // wait for clock cycle
-    while (!digitalRead(_clock_pin)) {delayMicroseconds(1);}
-    while (digitalRead(_clock_pin)) {delayMicroseconds(1);}
+    while (!digitalRead(_clock_pin)) {;}//{delayMicroseconds(1);}
+    while (digitalRead(_clock_pin)) {;}//{delayMicroseconds(1);}
     parity = parity ^ (data & 0x01);
     data = data >> 1;
   }
@@ -316,11 +316,11 @@ void CD32PS2MouseHandler::write(int data) {
     pull_low(_data_pin);
   }
   // wait for clock cycle
-  while (!digitalRead(_clock_pin)) {delayMicroseconds(1);}
-  while (digitalRead(_clock_pin)) {delayMicroseconds(1);}
+  while (!digitalRead(_clock_pin)) {;}//{delayMicroseconds(1);}
+  while (digitalRead(_clock_pin))  {;}//{delayMicroseconds(1);}
   pull_high(_data_pin); // release data line
-  while (digitalRead(_data_pin)) {delayMicroseconds(1);} // wait for mouse to take over data line
-  while (digitalRead(_clock_pin)) {delayMicroseconds(1);} // wait for mouse to take over clock
+  while (digitalRead(_data_pin))  {;}//{delayMicroseconds(1);} // wait for mouse to take over data line
+  while (digitalRead(_clock_pin))  {;}//{delayMicroseconds(1);} // wait for mouse to take over clock
   while ((!digitalRead(_clock_pin)) && (!digitalRead(_data_pin))) {;} // wait for mouse to release clock and data
   _mouse_timeout = false;
 }
@@ -339,10 +339,10 @@ uint8_t CD32PS2MouseHandler::read_byte() {
       _mouse_timeout = true;
       return 0;
     }
-    delayMicroseconds(2);
+    //delayMicroseconds(2);
   }
 
-  while (!digitalRead(_clock_pin)) {delayMicroseconds(1);}
+  while (!digitalRead(_clock_pin)) {;}//{delayMicroseconds(1);}
   // read data bits
   for (int i = 0; i < 8; i++) {
     bitWrite(data, i, read_bit());
@@ -354,9 +354,9 @@ uint8_t CD32PS2MouseHandler::read_byte() {
 }
 
 int CD32PS2MouseHandler::read_bit() {
-  while (digitalRead(_clock_pin)) {delayMicroseconds(1);}
+  while (digitalRead(_clock_pin)) {;}//{delayMicroseconds(1);}
   int bit = digitalRead(_data_pin);
-  while (!digitalRead(_clock_pin)) {delayMicroseconds(1);}
+  while (!digitalRead(_clock_pin)) {;}//{delayMicroseconds(1);}
   return bit;
 }
 
@@ -366,6 +366,6 @@ void CD32PS2MouseHandler::pull_low(int pin) {
 }
 
 void CD32PS2MouseHandler::pull_high(int pin) {
-  pinMode(pin, INPUT);
+  pinMode(pin, INPUT_PULLUP);
   digitalWrite(pin, HIGH);
 }

@@ -1,10 +1,10 @@
-//PS/2 to Amiga CD32 mouse translator v 4.6
+//PS/2 to Amiga CD32 mouse translator v5.0
 //Tested on:
 //Perixx PERIMICE-201 PS/2
 //Logitech M-SBF96 PS/2
 //Genius DX-110 PS/2
 //NEW3P PS/2
-//six levels of mouse speed
+//seven levels of mouse speed
 //DPI stored in EEPROM memory
 //DPI change: Middle mouse button
 #include <avr/wdt.h>
@@ -13,6 +13,7 @@
 
 //#define GENIUS
 //#define MOUSEDEBUGGER
+//#define COUNTERDEBUGGER
 #define INITDEBUGGER
 //#define ATMEGA32 //uncomment for ATmega32, comment for ATmega328P
 
@@ -49,22 +50,25 @@
   #define ButtonR       8 // D8  -> pin 9
   #define ButtonM       9 // D9  -> pin 5
   //-------------------------------------------------------------------------//
-  #define MOUSE_DATA   12//A4 // A4  -> pin 1 (Mouse mini DIN plug)
-  #define MOUSE_CLOCK  11//A5 // A5  -> pin 5 (Mouse mini DIN plug)
+  #define MOUSE_CLOCK  11 // D11 -> pin 5 (Mouse mini DIN plug)
+  #define MOUSE_DATA   12 // D12 -> pin 1 (Mouse mini DIN plug)
   //-------------------------------------------------------------------------//
-  #define LED           13 // internal D2 LED
+  #define LED          13 // internal D2 LED
 #endif
 //=======================================//
 
 #define DPIMax  3
-#define SkipMax 3
+#define xySkipMax 4
+#define xySkipMin 1
+#define LoopCounterMin 2
+#define mMax 20
 
-const char* firmwareRevision    = "4.6";
-volatile uint16_t pinStateDelay = 3;   //3 us, half the length of one pulse
-volatile int16_t  m_max         = 10;  //10 maximum number of pulses per cycle
+const char* firmwareRevision    = "5.0";
+volatile uint16_t pinStateDelay = 3;   // 3 us, half the length of one pulse
+volatile int16_t  m_max         = mMax;  // 10 maximum number of pulses per cycle
 bool speedState                 = 0;
-byte xySkip                     = 1;
-byte loopCounter                = 2;
+byte xySkip                     = xySkipMin;
+byte loopCounter                = LoopCounterMin;
 byte speedDPI                   = 0;
 volatile int16_t x_m            = 0;
 volatile int16_t y_m            = 0;
@@ -76,20 +80,30 @@ unsigned long _millis           = 0;
 CD32PS2MouseHandler mouse(MOUSE_CLOCK, MOUSE_DATA);
 
 void setup() {
-  //wdt_disable();
-  #if defined(MOUSEDEBUGGER) || defined(INITDEBUGGER)
+  #if defined(MOUSEDEBUGGER) || defined(COUNTERDEBUGGER) || defined(INITDEBUGGER)
     Serial.begin(2000000);
   #endif
 
   speedDPI = EEPROM.read(0);
-  if (speedDPI > DPIMax) speedDPI = 0;
+  if (speedDPI > DPIMax) {
+    speedDPI = 0;
+    EEPROM.write(0, speedDPI);
+    delay(10);
+  }
+
   xySkip = EEPROM.read(1);
-  if (xySkip > SkipMax) xySkip = SkipMax;
-  if (xySkip < 1) xySkip = 1;
-  //pinMode(MOUSE_CLOCK, INPUT_PULLUP);
-  //pinMode(MOUSE_DATA,  INPUT_PULLUP);
-  //digitalWrite(MOUSE_CLOCK, HIGH);
-  //digitalWrite(MOUSE_DATA,  HIGH);
+  if (xySkip > xySkipMax) {
+    xySkip = xySkipMax;
+    EEPROM.write(1, xySkip);
+    delay(10);
+  }
+
+  if (xySkip < xySkipMin) {
+    xySkip = xySkipMin;
+    EEPROM.write(1, xySkip);
+    delay(10);
+  }
+
   pinMode(Vpin,    OUTPUT);
   pinMode(VQpin,   OUTPUT);
   pinMode(Hpin,    OUTPUT);
@@ -104,7 +118,7 @@ void setup() {
 
   int _mouse_Init = mouse.initialise();
 
-  while (_mouse_Init != 0xFA) {
+  if (_mouse_Init != 0xFA) {
     #if defined(INITDEBUGGER)
       Serial.print("MOUSE_ERROR:");
       Serial.print(_mouse_Init, HEX);
@@ -114,28 +128,25 @@ void setup() {
     #endif
 
     digitalWrite(LED, LOW);
-    //delay(100);
-    //_mouse_Init = mouse.initialise();
     wdt_enable(WDTO_15MS);
-    while (1) {delayMicroseconds(2);}
-    //digitalWrite(LED, HIGH);
+    while (1) {delayMicroseconds(10);} 
   }
   
   mouse.set_resolution(speedDPI);
 
   #if defined(INITDEBUGGER)
+    Serial.print("FIRMWARE:");
+    Serial.println(firmwareRevision);
     Serial.print("TYPE:");
     Serial.println(mouse.get_device_id());
     Serial.print("STATUS:");
     Serial.println(mouse.get_status());
-    Serial.print("RESOLUTION:");
-    Serial.println(mouse.get_resolution());
     Serial.print("RATE:");
     Serial.println(mouse.get_rate());
+    Serial.print("RESOLUTION:");
+    Serial.println(mouse.get_resolution());
     Serial.print("LOOP_SKIP:");
     Serial.println(xySkip);
-    Serial.print("FIRMWARE:");
-    Serial.println(firmwareRevision);
     Serial.flush();
   #endif
 
@@ -147,27 +158,28 @@ void setup() {
 }
 
 void loop() {
-  mouse.get_device_id(); //reset mouse counters 
+  mouse.get_device_id(); // reset mouse counters
   
-  if (mouse.mouse_timeout()) { //check mouse
+  if (mouse.mouse_timeout()) { // check mouse
     wdt_enable(WDTO_15MS);
     while (1) {delayMicroseconds(10);}
-  }  
+  }
+
   mouse.get_data(reporting_mode_read_data);
 
   digitalWrite(ButtonL, !mouse.button(0));
   digitalWrite(ButtonR, !mouse.button(2));
   digitalWrite(ButtonM, !mouse.button(1));
 
-  if (loopCounter > xySkip) {
+  //if (loopCounter > xySkip) {
     x_m = mouse.x_movement();
     y_m = mouse.y_movement();
-    loopCounter = 2;
-  }
-  else {
-    x_m = 0;
-    y_m = 0;
-  }
+  //  loopCounter = LoopCounterMin;
+  //}
+  //else {
+  //  x_m = 0;
+  //  y_m = 0;
+  //}
 
   z_m = mouse.z_movement();
 
@@ -185,7 +197,7 @@ void loop() {
       if (speedDPI < DPIMax) speedDPI += 1;
       else {
         speedDPI = 0;
-        xySkip = SkipMax;
+        xySkip = xySkipMax;
       }
     }
     EEPROM.write(0, speedDPI);
@@ -195,6 +207,8 @@ void loop() {
     mouse.set_resolution(speedDPI);
 
     #if defined(INITDEBUGGER)
+      Serial.print("RATE:");
+      Serial.println(mouse.get_rate());
       Serial.print("RESOLUTION:");
       Serial.println(mouse.get_resolution());
       Serial.print("LOOP_SKIP:");
@@ -209,35 +223,41 @@ void loop() {
       Serial.print("*");
       Serial.print(y_m);
       Serial.print("*");
-      Serial.println(z_m);
-      Serial.flush();
-    }
-    else {
+      Serial.print(z_m);
+      Serial.print("*");
+  #if defined(COUNTERDEBUGGER)
       Serial.print(mouse.get_status());
       Serial.print("*");
-      Serial.print(mouse.get_resolution());
-      Serial.print("*");
-      Serial.print(mouse.get_rate());
-      Serial.print("*");
-      Serial.println(xySkip);
+  #else
+      Serial.println(mouse.get_status());
+      //Serial.print("*");
+  #endif
       Serial.flush();
     }
   #endif
 //  if (z_m == 0) {
     if (x_m != 0 || y_m != 0) {
+
       bool HcounterIsUp = (x_m >= 0) ? true : false;
       x_m = abs(x_m);
-    
-      if (x_m > m_max) x_m = m_max;
+
+      if (x_m > 0) {
+        x_m = (double)x_m / (double)xySkip + 0.5;
+        if (x_m == 0) x_m = 1;
+        else if (x_m > m_max) x_m = m_max;
+      }
 
       bool VcounterIsUp = (y_m >= 0) ? false : true;
       y_m = abs(y_m);
 
-      if (y_m > m_max) y_m = m_max;
+      if (y_m > 0) {
+        y_m = (double)y_m / (double)xySkip + 0.5;
+        if (y_m == 0) y_m = 1;
+        else if (y_m > m_max) y_m = m_max;
+      }
 
-      //uint16_t = delayMultiplier = (x_m > y_m) ? x_m : y_m;
-
-      pulseGenerator(HcounterIsUp, VcounterIsUp, pinStateDelay * (uint16_t)xySkip, x_m, y_m);
+      //pulseGenerator(HcounterIsUp, VcounterIsUp, pinStateDelay * (uint16_t)xySkip, x_m, y_m);
+      pulseGenerator(HcounterIsUp, VcounterIsUp, pinStateDelay, x_m, y_m);
     }
 //  }
 //  else {
@@ -252,9 +272,15 @@ void pulseGenerator(bool HcounterIsUp, bool VcounterIsUp ,uint16_t _pinStateDela
 
   uint8_t _maxPulsesPerStep = (HPulsesPerStep > VPulsesPerStep) ? HPulsesPerStep : VPulsesPerStep; 
 
-  _pinStateDelay = _pinStateDelay * ((1.0 / (double)_maxPulsesPerStep) * 10.0);
+  _pinStateDelay = _pinStateDelay * ((1.0 / (double)_maxPulsesPerStep) * (double)mMax);
 
-  //Serial.println(_pinStateDelay);
+  #if defined(COUNTERDEBUGGER)
+    Serial.print(HPulsesPerStep);
+    Serial.print("*");
+    Serial.print(VPulsesPerStep);
+    Serial.print("*");
+    Serial.println(_pinStateDelay);
+  #endif
 
   for (int pulses = 0; _maxPulsesPerStep > pulses ; pulses++) {    
 

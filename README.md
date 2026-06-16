@@ -1,6 +1,6 @@
 # PS/2 mouse to Amiga CD32
 
-Six levels of mouse speed:
+Seven levels of mouse speed:
 
 * DPI stored in EEPROM memory.
 * DPI change: hold down the middle mouse button for at least 2 seconds

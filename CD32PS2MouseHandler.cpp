@@ -259,7 +259,7 @@ int8_t CD32PS2MouseHandler::read_movement_z() {
   // 4 bit signed
   uint8_t value = read_byte(); // an 8 bit unsigned value
   // test bit 3 for sign
-  if(bitRead(value, 3)) {
+  if (bitRead(value, 3)) {
     // negative - set upper nibble to 1's
     value |= 0xF0;
   }

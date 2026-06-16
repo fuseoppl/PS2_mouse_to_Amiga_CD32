@@ -58,22 +58,21 @@
 //=======================================//
 
 #define DPIMax  3
-#define xySkipMax 4
-#define xySkipMin 1
-#define LoopCounterMin 2
+#define xyDividerMax 4
+#define xyDividerMin 1
 #define mMax 20
 
 const char* firmwareRevision    = "5.0";
 volatile uint16_t pinStateDelay = 3;   // 3 us, half the length of one pulse
 volatile int16_t  m_max         = mMax;  // 10 maximum number of pulses per cycle
 bool speedState                 = 0;
-byte xySkip                     = xySkipMin;
-byte loopCounter                = LoopCounterMin;
+byte xyDivider                     = xyDividerMin;
 byte speedDPI                   = 0;
 volatile int16_t x_m            = 0;
 volatile int16_t y_m            = 0;
 volatile int16_t z_m            = 0;
 bool reporting_mode_read_data   = true;
+bool loopSkip                   = false;
 
 unsigned long _millis           = 0;
 
@@ -91,16 +90,16 @@ void setup() {
     delay(10);
   }
 
-  xySkip = EEPROM.read(1);
-  if (xySkip > xySkipMax) {
-    xySkip = xySkipMax;
-    EEPROM.write(1, xySkip);
+  xyDivider = EEPROM.read(1);
+  if (xyDivider > xyDividerMax) {
+    xyDivider = xyDividerMax;
+    EEPROM.write(1, xyDivider);
     delay(10);
   }
 
-  if (xySkip < xySkipMin) {
-    xySkip = xySkipMin;
-    EEPROM.write(1, xySkip);
+  if (xyDivider < xyDividerMin) {
+    xyDivider = xyDividerMin;
+    EEPROM.write(1, xyDivider);
     delay(10);
   }
 
@@ -145,8 +144,8 @@ void setup() {
     Serial.println(mouse.get_rate());
     Serial.print("RESOLUTION:");
     Serial.println(mouse.get_resolution());
-    Serial.print("LOOP_SKIP:");
-    Serial.println(xySkip);
+    Serial.print("XY_DIVIDER:");
+    Serial.println(xyDivider);
     Serial.flush();
   #endif
 
@@ -171,15 +170,18 @@ void loop() {
   digitalWrite(ButtonR, !mouse.button(2));
   digitalWrite(ButtonM, !mouse.button(1));
 
-  //if (loopCounter > xySkip) {
+  if (xyDivider < 4) loopSkip = false;
+
+  if (!loopSkip) {
     x_m = mouse.x_movement();
     y_m = mouse.y_movement();
-  //  loopCounter = LoopCounterMin;
-  //}
-  //else {
-  //  x_m = 0;
-  //  y_m = 0;
-  //}
+  }
+  else {
+    x_m = 0;
+    y_m = 0;
+  }
+
+  loopSkip = !loopSkip;
 
   z_m = mouse.z_movement();
 
@@ -190,19 +192,19 @@ void loop() {
 
   if (mouse.button(1) && !speedState && millis() - _millis > 1000) {
     speedState = true;
-    if (speedDPI == 0 && xySkip > 1) {
-      xySkip -= 1;
+    if (speedDPI == 0 && xyDivider > 1) {
+      xyDivider -= 1;
     }
     else {
       if (speedDPI < DPIMax) speedDPI += 1;
       else {
         speedDPI = 0;
-        xySkip = xySkipMax;
+        xyDivider = xyDividerMax;
       }
     }
     EEPROM.write(0, speedDPI);
     delay(10);
-    EEPROM.write(1, xySkip);
+    EEPROM.write(1, xyDivider);
     delay(10);
     mouse.set_resolution(speedDPI);
 
@@ -211,8 +213,8 @@ void loop() {
       Serial.println(mouse.get_rate());
       Serial.print("RESOLUTION:");
       Serial.println(mouse.get_resolution());
-      Serial.print("LOOP_SKIP:");
-      Serial.println(xySkip);
+      Serial.print("XY_DIVIDER:");
+      Serial.println(xyDivider);
       Serial.flush();
     #endif
   }
@@ -242,7 +244,7 @@ void loop() {
       x_m = abs(x_m);
 
       if (x_m > 0) {
-        x_m = (double)x_m / (double)xySkip + 0.5;
+        x_m = (double)x_m / (double)xyDivider + 0.5;
         if (x_m == 0) x_m = 1;
         else if (x_m > m_max) x_m = m_max;
       }
@@ -251,12 +253,11 @@ void loop() {
       y_m = abs(y_m);
 
       if (y_m > 0) {
-        y_m = (double)y_m / (double)xySkip + 0.5;
+        y_m = (double)y_m / (double)xyDivider + 0.5;
         if (y_m == 0) y_m = 1;
         else if (y_m > m_max) y_m = m_max;
       }
 
-      //pulseGenerator(HcounterIsUp, VcounterIsUp, pinStateDelay * (uint16_t)xySkip, x_m, y_m);
       pulseGenerator(HcounterIsUp, VcounterIsUp, pinStateDelay, x_m, y_m);
     }
 //  }
@@ -265,7 +266,6 @@ void loop() {
 //    bool VcounterIsUp = (z_m >= 0) ? false : true;
 //    pulseGenerator(false, VcounterIsUp, pinStateDelay, 0, 3);
 // }
-loopCounter++;
 }
 
 void pulseGenerator(bool HcounterIsUp, bool VcounterIsUp ,uint16_t _pinStateDelay, uint8_t HPulsesPerStep, uint8_t VPulsesPerStep) {

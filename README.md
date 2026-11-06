@@ -28,9 +28,9 @@ DFRobot Beetle Board <-> Amiga DB9
 * D11 -> pin 1 (Mouse mini DIN plug)
 * SCL -> pin 5 (Mouse mini DIN plug)
 
-mini ultra, china Arduino UNO nano clone https://pl.aliexpress.com/item/1005007492500542.html
-
-To avoid problems with the watchdog, it is best to flash a new bootloader or disable the watchdog.
+* Arduino Nano V3.0, china clone https://pl.aliexpress.com/item/1005007492500542.html
+In the Arduino IDE, please select: Arduino Nano (old boot-loader, unless you update)
+To avoid watchdog issues, you need to flash a new bootloader!
 
 (//#define ATMEGA32 //comment for ATmega328P)
 

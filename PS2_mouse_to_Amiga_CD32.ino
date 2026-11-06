@@ -16,6 +16,7 @@
 //#define COUNTERDEBUGGER
 #define INITDEBUGGER
 //#define ATMEGA32 //uncomment for ATmega32, comment for ATmega328P
+#define MINIPINOUTV1
 
 //=======================================//
 //   DFRobot Beetle Board
@@ -37,21 +38,35 @@
   //-------------------------------------------------------------------------//
   #define LED          13 //internal LED
 #else
-//mini ultra, china Arduino UNO nano clone https://pl.aliexpress.com/item/1005007492500542.html
-//select Tools->Processor->ATmega328P (Old Bootloader)
+//Arduino Nano V3.0, china clone https://pl.aliexpress.com/item/1005007492500542.html
+//In the Arduino IDE, please select: Arduino Nano (old boot-loader, unless you update)
 //To avoid problems with the watchdog, it is best to flash a new bootloader or disable the watchdog.
                           // 5V <-  pin 7 & pin 4 (Mouse mini DIN plug)
                           //gnd <-> pin 8 & pin 3 (Mouse mini DIN plug)
+//PINOUT V1
+#if defined(MINIPINOUTV1)
   #define Vpin          3 // D3  -> pin 1
-  #define VQpin         5 // D5  -> pin 3
   #define Hpin          4 // D4  -> pin 2
+  #define VQpin         5 // D5  -> pin 3
   #define HQpin         6 // D6  -> pin 4
   #define ButtonL       7 // D7  -> pin 6
   #define ButtonR       8 // D8  -> pin 9
   #define ButtonM       9 // D9  -> pin 5
+
+//PINOUT V2
+#else
+  #define Vpin          3 // D3  -> pin 6
+  #define Hpin          4 // D4  -> pin 1
+  #define VQpin         5 // D5  -> pin 2 
+  #define HQpin         6 // D6  -> pin 3
+  #define ButtonL       7 // D7  -> pin 4
+  #define ButtonR       8 // D8  -> pin 5
+  #define ButtonM       9 // D9  -> pin 9
+#endif
+
   //-------------------------------------------------------------------------//
-  #define MOUSE_CLOCK  11 // D11 -> pin 5 (Mouse mini DIN plug)
-  #define MOUSE_DATA   12 // D12 -> pin 1 (Mouse mini DIN plug)
+  #define MOUSE_CLOCK  11 // D11 -> pin 5 (Mouse mini DIN plug) green
+  #define MOUSE_DATA   12 // D12 -> pin 1 (Mouse mini DIN plug) white
   //-------------------------------------------------------------------------//
   #define LED          13 // internal D2 LED
 #endif
@@ -66,7 +81,7 @@ const char* firmwareRevision    = "5.0";
 volatile uint16_t pinStateDelay = 3;   // 3 us, half the length of one pulse
 volatile int16_t  m_max         = mMax;  // 10 maximum number of pulses per cycle
 bool speedState                 = 0;
-byte xyDivider                     = xyDividerMin;
+byte xyDivider                  = xyDividerMin;
 byte speedDPI                   = 0;
 volatile int16_t x_m            = 0;
 volatile int16_t y_m            = 0;
